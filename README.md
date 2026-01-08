@@ -23,7 +23,7 @@ Este proyecto busca inmuebles en algunas páginas con los filtros que quieras y 
 
 ### Setup :hammer:
 
-1. Abrir una terminal/consola<s>/tostadora</s> donde puedas usar python.
+1. Abrir una terminal/consola donde puedas usar python.
 
 2. Ir a la carpeta del repositorio en tu computadora.
 

@@ -1,0 +1,10 @@
+.DS_Store
+*.pyc
+__pycache__/
+
+scrapdep/
+venv/
+config.json
+config.yaml
+*.db
+*.sqlite3

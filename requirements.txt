@@ -1,0 +1,7 @@
+rich==12.2.0
+typer==0.4.1
+cloudscraper==1.2.60
+pydantic==2.7.4
+beautifulsoup4==4.11.1
+sqlmodel==0.0.22
+PyYAML==6.0.2

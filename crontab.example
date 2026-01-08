@@ -1,0 +1,9 @@
+# Example crontab (replace /home/flahittette/repos/scrappdept with your repo path if different)
+# Run daily scrape & send at 09:00 (using flock to avoid overlapping runs)
+0 9 * * * /usr/bin/flock -n /tmp/scrapdept.lock /home/flahittette/repos/scrappdept/scripts/run_daily.sh >> /home/flahittette/repos/scrappdept/logs/daily.log 2>&1
+
+# Retry failed sends at 09:30
+30 9 * * * /usr/bin/flock -n /tmp/scrapdept.lock PYTHONPATH=. /home/flahittette/repos/scrappdept/venv/bin/python /home/flahittette/repos/scrappdept/scripts/retry_failed_sends.py >> /home/flahittette/repos/scrappdept/logs/retries.log 2>&1
+
+# Send daily summary at 09:45
+45 9 * * * PYTHONPATH=. /home/flahittette/repos/scrappdept/venv/bin/python /home/flahittette/repos/scrappdept/scripts/daily_report.py >> /home/flahittette/repos/scrappdept/logs/daily_report.log 2>&1

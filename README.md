@@ -15,7 +15,7 @@ Este proyecto busca inmuebles en algunas páginas con los filtros que quieras y 
 
 ### Requerimientos Previos :nut_and_bolt:
 
-1. Saber lo que es una terminal/consola y poder manejarte entre carpetas en una.
+1. Saber lo que es una terminal y poder manejarte entre carpetas en una.
 
 2. Vas a necesitar tener instalado Python. Si no lo tenés instalado, [acá te dejo un link](https://tutorial.djangogirls.org/es/python_installation/)
 

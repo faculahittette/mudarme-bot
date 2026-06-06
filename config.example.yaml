@@ -1,0 +1,31 @@
+# Copia este archivo a config.yaml y completalo. Pasalo a main.py:
+#   python main.py config.yaml
+
+# Cuantas paginas recorrer por sitio (la primera pagina trae lo mas nuevo).
+pages: 3
+
+# Segundos de espera entre corridas cuando persist: true.
+sleep_time: 300
+
+# Bot de Telegram (grupo de mudarme-bot, separado de bot_bna_hogares).
+bot_token: "TU_TOKEN_DE_BOT"
+chat_room: "TU_CHAT_ID"
+
+# true = loop infinito; false = una sola corrida.
+persist: false
+
+# URLs de busqueda YA filtradas (zona, precio, ambientes, antiguedad, apto credito).
+# Reemplazar el numero de pagina por {}.
+# Comenta (o deja en null) las que no uses.
+
+# Zonaprop/Argenprop: la URL del navegador con la pagina como {} (ej: ...-pagina-{}.html)
+zonaprop_full_url: null
+argenprop_full_url: null
+
+# Remax: la URL del request a la API (F12 -> Network -> Fetch/XHR), con page={} (0-indexed).
+remax_full_url: null
+
+# Otros sitios soportados (opcionales):
+mercadolibre_full_url: null
+la_voz_full_url: null
+properati_full_url: null

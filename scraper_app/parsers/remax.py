@@ -25,14 +25,18 @@ class RemaxParser(BaseParser):
                 return data.get('data') or data.get('content') or data.get('results') or []
         return []
 
-    def _format_price(self, price_obj) -> str:
-        if isinstance(price_obj, dict):
-            currency = price_obj.get('currency') or ''
-            amount = price_obj.get('amount')
-            if amount is not None:
-                return '{} {:,}'.format(currency, amount).strip()
-            return self.sanitize_text(currency)
-        return self.sanitize_text(str(price_obj or ''))
+    def _format_price(self, item) -> str:
+        # En la API de Remax el precio es un numero y la moneda viene aparte
+        # en currency.value (ej: price=195000, currency={"value": "USD"}).
+        amount = item.get('price')
+        currency_obj = item.get('currency')
+        currency = ''
+        if isinstance(currency_obj, dict):
+            currency = currency_obj.get('value') or ''
+        if isinstance(amount, (int, float)) and amount:
+            # La API manda el monto como float (195000.0); lo mostramos entero.
+            return '{} {:,}'.format(currency, int(amount)).strip()
+        return 'Consultar precio'
 
     def extract_data(self) -> Set[Posting]:
         postings = set()
@@ -61,16 +65,18 @@ class RemaxParser(BaseParser):
                 continue
 
             title = self.sanitize_text(item.get('title') or '')[:100]
-            price = self._format_price(item.get('price'))
-            location = self.sanitize_text(item.get('displayAddress') or '')
+            price = self._format_price(item)
+            # geoLabel trae el barrio ("Caballito, Capital Federal");
+            # displayAddress es la calle ("Av. Gaona 1600").
+            location = self.sanitize_text(item.get('geoLabel') or '')
 
             features = []
-            if item.get('totalBuiltSurface'):
-                features.append('{} m2'.format(item['totalBuiltSurface']))
-            if item.get('roomQuantity'):
-                features.append('{} amb'.format(item['roomQuantity']))
-            if item.get('bedroomQuantity'):
-                features.append('{} dorm'.format(item['bedroomQuantity']))
+            if item.get('dimensionCovered'):
+                features.append('{} m2'.format(item['dimensionCovered']))
+            if item.get('totalRooms'):
+                features.append('{} amb'.format(item['totalRooms']))
+            if item.get('bedrooms'):
+                features.append('{} dorm'.format(item['bedrooms']))
             description = ' | '.join(features)
 
             postings.add(Posting(

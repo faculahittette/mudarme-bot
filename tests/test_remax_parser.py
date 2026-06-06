@@ -19,11 +19,11 @@ def test_remax_parser_extracts_postings(monkeypatch):
     assert len(postings) == 2
     by_url = {p.url: p for p in postings}
 
-    p = by_url['https://www.remax.com.ar/listings/depto-3-amb-caballito-apto-credito']
-    assert p.title == 'Departamento 3 ambientes en Caballito'
-    assert p.location == 'Caballito, Capital Federal'
+    p = by_url['https://www.remax.com.ar/listings/venta-3-amb-a-estrenar-en-villa-luro-apto-credito']
+    assert p.title == 'VENTA 3 AMB A ESTRENAR EN VILLA LURO APTO CREDITO'
+    assert p.location == 'Villa Luro, Capital Federal'
     assert 'USD' in p.price
-    assert '68 m' in p.description
+    assert '69.23 m' in p.description
     assert p.sha
 
 

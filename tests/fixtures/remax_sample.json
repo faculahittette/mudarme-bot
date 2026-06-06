@@ -2,27 +2,51 @@
   "data": {
     "data": [
       {
-        "id": 1001,
-        "slug": "depto-3-amb-caballito-apto-credito",
-        "title": "Departamento 3 ambientes en Caballito",
-        "displayAddress": "Caballito, Capital Federal",
-        "price": {"currency": "USD", "amount": 150000},
-        "totalBuiltSurface": 68,
-        "roomQuantity": 3,
-        "bedroomQuantity": 2
+        "id": 572470,
+        "entityId": "08320c58-6c62-4067-a754-46893b684f25",
+        "entrepreneurship": false,
+        "operation": {"id": 1, "value": "sale"},
+        "currency": {"id": 1, "value": "USD"},
+        "type": {"id": 2, "value": "departamento_estandar"},
+        "title": "VENTA 3 AMB A ESTRENAR EN VILLA LURO APTO CREDITO",
+        "slug": "venta-3-amb-a-estrenar-en-villa-luro-apto-credito",
+        "totalRooms": 3,
+        "bathrooms": 1,
+        "bedrooms": 2,
+        "price": 195000,
+        "priceExposure": true,
+        "displayAddress": "Zelada 5000",
+        "dimensionTotalBuilt": 78.75,
+        "dimensionCovered": 69.23,
+        "geoLabel": "Villa Luro, Capital Federal"
       },
       {
-        "id": 1002,
-        "slug": "ph-villa-urquiza",
-        "title": "PH en Villa Urquiza",
-        "displayAddress": "Villa Urquiza, Capital Federal",
-        "price": {"currency": "USD", "amount": 175000},
-        "totalBuiltSurface": 80,
-        "roomQuantity": 4,
-        "bedroomQuantity": 3
+        "id": 545265,
+        "entityId": "4b4e2653-923d-478f-9a9e-c81bbc36e9ee",
+        "entrepreneurship": false,
+        "operation": {"id": 1, "value": "sale"},
+        "currency": {"id": 1, "value": "USD"},
+        "type": {"id": 2, "value": "departamento_estandar"},
+        "title": "VENTA DEPARTAMENTO 3 AMBIENTES BALCON - CABALLITO",
+        "slug": "venta-departamento-3-ambientes-balcon-caballito-2",
+        "totalRooms": 3,
+        "bathrooms": 2,
+        "bedrooms": 2,
+        "price": 180000,
+        "priceExposure": true,
+        "displayAddress": "Avenida Gaona 1600",
+        "dimensionTotalBuilt": 73.36,
+        "dimensionCovered": 66.27,
+        "geoLabel": "Caballito, Capital Federal"
       }
     ],
     "total": 2,
-    "page": 0
-  }
+    "page": 0,
+    "pageSize": 24,
+    "totalPages": 1,
+    "totalItems": 2
+  },
+  "code": 200,
+  "message": "Time elapsed seconds: 0",
+  "errors": null
 }

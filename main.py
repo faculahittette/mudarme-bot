@@ -4,7 +4,7 @@ from typing import Optional
 
 import typer
 from pydantic import BaseModel
-from pydantic.error_wrappers import ValidationError
+from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import track
 
@@ -27,6 +27,7 @@ class Config(BaseModel):
     mercadolibre_full_url: Optional[str] = None
     la_voz_full_url: Optional[str] = None
     properati_full_url: Optional[str] = None
+    remax_full_url: Optional[str] = None
 
 
 def main(config_path: str):
@@ -83,6 +84,13 @@ def main(config_path: str):
                 full_url=config.properati_full_url,
             )
             properati_posting_service.scrap_and_create_postings()
+
+        if config.remax_full_url:
+            remax_posting_service = PostingServiceFactory.build_for_remax(
+                pages=config.pages,
+                full_url=config.remax_full_url,
+            )
+            remax_posting_service.scrap_and_create_postings()
 
         console.log('Postings scrapped', style='italic bold green')
 

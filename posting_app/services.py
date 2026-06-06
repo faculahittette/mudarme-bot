@@ -80,3 +80,15 @@ class PostingServiceFactory:
             full_url=full_url,
         )
         return PostingService(scraper_service=scrapper_service)
+
+    @classmethod
+    def build_for_remax(
+        cls,
+        pages: int,
+        full_url: str
+    ) -> PostingService:
+        scrapper_service = ScraperServiceFactory.build_for_remax(
+            pages=pages,
+            full_url=full_url,
+        )
+        return PostingService(scraper_service=scrapper_service)

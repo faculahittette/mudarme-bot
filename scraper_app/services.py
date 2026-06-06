@@ -8,6 +8,7 @@ from .gateways import (
     LaVozGateway,
     MercadolibreGateway,
     ProperatiGateway,
+    RemaxGateway,
     ZonapropGateway,
 )
 from .parsers import (
@@ -16,6 +17,7 @@ from .parsers import (
     LaVozParser,
     MercadolibreParser,
     ProperatiParser,
+    RemaxParser,
     ZonapropParser,
 )
 from posting_app.database import Posting
@@ -120,4 +122,17 @@ class ScraperServiceFactory:
             url=full_url,
             gateway=ProperatiGateway(),
             parser=ProperatiParser(),
+        )
+
+    @classmethod
+    def build_for_remax(
+        cls,
+        pages: int,
+        full_url: str
+    ) -> ScraperService:
+        return ScraperService(
+            pages=pages,
+            url=full_url,
+            gateway=RemaxGateway(),
+            parser=RemaxParser(),
         )

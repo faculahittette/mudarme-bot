@@ -17,6 +17,12 @@ persist: false
 # URLs de busqueda YA filtradas (zona, precio, ambientes, antiguedad, apto credito).
 # Reemplazar el numero de pagina por {}.
 # Comenta (o deja en null) las que no uses.
+#
+# Cada sitio acepta UNA URL (string) o VARIAS (lista). Ejemplo con varias para
+# sumar los "a estrenar" (que en Zonaprop quedan afuera del filtro "hasta X anos"):
+#   zonaprop_full_url:
+#     - "https://www.zonaprop.com.ar/...-hasta-10-anos-...-pagina-{}.html"
+#     - "https://www.zonaprop.com.ar/...-a-estrenar-...-pagina-{}.html"
 
 # Zonaprop/Argenprop: la URL del navegador con la pagina como {} (ej: ...-pagina-{}.html)
 zonaprop_full_url: null

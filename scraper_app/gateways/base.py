@@ -11,6 +11,17 @@ class BaseGateway(ABC):
     paginated = True
     first_page = 1
 
+    def page_param(self, page: int) -> int:
+        '''
+        Transforma el indice de pagina al valor que va literalmente en la URL.
+
+        Por defecto es identidad: Zonaprop usa el numero de pagina tal cual
+        (`-pagina-2.html`) y Remax lo usa 0-indexed via `first_page`. Sitios
+        que paginan por offset de item (ej: Mercado Libre con `_Desde_49`)
+        sobreescriben este metodo.
+        '''
+        return page
+
     def make_request(self, url: str) -> str:
         '''
         Makes the request to the full_url using cloudscraper

@@ -32,6 +32,11 @@ argenprop_full_url: null
 remax_full_url: null
 
 # Otros sitios soportados (opcionales):
+# Mercado Libre: pega la URL del navegador e inserta `_Desde_{}` en el path,
+# justo despues del ultimo segmento (barrios) y antes de los modificadores
+# (`_PriceRange_`, `_COVERED*AREA_`, etc.). El bot reemplaza {} por el offset
+# de cada pagina (pagina 1 -> _Desde_1, pagina 2 -> _Desde_49, ...). Ejemplo:
+#   "https://inmuebles.mercadolibre.com.ar/departamentos/venta/capital-federal/_Desde_{}_NoIndex_True"
 mercadolibre_full_url: null
 la_voz_full_url: null
 properati_full_url: null

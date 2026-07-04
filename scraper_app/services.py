@@ -45,8 +45,11 @@ class ScraperService:
 
         for page in range(first_page, first_page + pages):
             console.log(f'Page {page} of {pages}')
+            # Algunos sitios (ej: Mercado Libre) paginan por offset de item, no
+            # por numero de pagina. El gateway traduce el indice al valor real.
+            page_param = getattr(self._gateway, 'page_param', lambda p: p)(page)
             html = self._gateway.make_request(
-                url=self._url.format(page)
+                url=self._url.format(page_param)
             )
 
             self._parser.get_soup_object(html=html)

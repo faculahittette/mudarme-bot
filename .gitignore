@@ -8,3 +8,4 @@ config.json
 config.yaml
 *.db
 *.sqlite3
+meli_token.json

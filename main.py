@@ -1,10 +1,10 @@
 import yaml
 from time import sleep
-from typing import Optional
+from typing import List, Optional, Union
 
 import typer
 from pydantic import BaseModel
-from pydantic.error_wrappers import ValidationError
+from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import track
 
@@ -15,6 +15,9 @@ from telegram_app.services import TelegramService
 console = Console()
 
 
+Urls = Optional[Union[str, List[str]]]
+
+
 class Config(BaseModel):
     pages: Optional[int] = 3
     sleep_time: Optional[int] = 5
@@ -22,11 +25,23 @@ class Config(BaseModel):
     chat_room: str
     persist: Optional[bool] = False
     zonaprop_base_url: Optional[str] = None
-    zonaprop_full_url: Optional[str] = None
-    argenprop_full_url: Optional[str] = None
-    mercadolibre_full_url: Optional[str] = None
-    la_voz_full_url: Optional[str] = None
-    properati_full_url: Optional[str] = None
+    # Cada *_full_url acepta una URL (string) o varias (lista de strings),
+    # util por ejemplo para sumar una busqueda "a estrenar" ademas de la normal.
+    zonaprop_full_url: Urls = None
+    argenprop_full_url: Urls = None
+    mercadolibre_full_url: Urls = None
+    la_voz_full_url: Urls = None
+    properati_full_url: Urls = None
+    remax_full_url: Urls = None
+
+
+def as_url_list(urls: Urls) -> List[str]:
+    '''Normaliza el campo de config (None / str / list) a una lista de URLs.'''
+    if not urls:
+        return []
+    if isinstance(urls, str):
+        return [urls]
+    return list(urls)
 
 
 def main(config_path: str):
@@ -47,42 +62,25 @@ def main(config_path: str):
     create_db_and_tables()
     console.log('Database loaded', style='italic bold green')
 
+    # Cada entrada mapea un sitio a su builder; cada sitio puede tener varias URLs.
+    site_builders = [
+        (config.zonaprop_full_url, PostingServiceFactory.build_for_zonaprop),
+        (config.argenprop_full_url, PostingServiceFactory.build_for_argenprop),
+        (config.mercadolibre_full_url, PostingServiceFactory.build_for_mercadolibre),
+        (config.la_voz_full_url, PostingServiceFactory.build_for_la_voz),
+        (config.properati_full_url, PostingServiceFactory.build_for_properati),
+        (config.remax_full_url, PostingServiceFactory.build_for_remax),
+    ]
+
     while(True):
         # SCRAP POSTINGS
-        if config.zonaprop_full_url:
-            zonaprop_posting_service = PostingServiceFactory.build_for_zonaprop(
-                pages=config.pages,
-                full_url=config.zonaprop_full_url,
-            )
-            zonaprop_posting_service.scrap_and_create_postings()
-
-        if config.argenprop_full_url:
-            argenprop_posting_service = PostingServiceFactory.build_for_argenprop(
-                pages=config.pages,
-                full_url=config.argenprop_full_url,
-            )
-            argenprop_posting_service.scrap_and_create_postings()
-
-        if config.mercadolibre_full_url:
-            mercadolibre_posting_service = PostingServiceFactory.build_for_mercadolibre(
-                pages=config.pages,
-                full_url=config.mercadolibre_full_url,
-            )
-            mercadolibre_posting_service.scrap_and_create_postings()
-
-        if config.la_voz_full_url:
-            la_voz_posting_service = PostingServiceFactory.build_for_la_voz(
-                pages=config.pages,
-                full_url=config.la_voz_full_url,
-            )
-            la_voz_posting_service.scrap_and_create_postings()
-
-        if config.properati_full_url:
-            properati_posting_service = PostingServiceFactory.build_for_properati(
-                pages=config.pages,
-                full_url=config.properati_full_url,
-            )
-            properati_posting_service.scrap_and_create_postings()
+        for urls, build_posting_service in site_builders:
+            for url in as_url_list(urls):
+                posting_service = build_posting_service(
+                    pages=config.pages,
+                    full_url=url,
+                )
+                posting_service.scrap_and_create_postings()
 
         console.log('Postings scrapped', style='italic bold green')
 

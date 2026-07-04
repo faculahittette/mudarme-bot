@@ -8,6 +8,7 @@ from .gateways import (
     LaVozGateway,
     MercadolibreGateway,
     ProperatiGateway,
+    RemaxGateway,
     ZonapropGateway,
 )
 from .parsers import (
@@ -16,6 +17,7 @@ from .parsers import (
     LaVozParser,
     MercadolibreParser,
     ProperatiParser,
+    RemaxParser,
     ZonapropParser,
 )
 from posting_app.database import Posting
@@ -39,8 +41,9 @@ class ScraperService:
     def get_postings_from_scraper(self) -> List[Posting]:
         postings = set()
         pages = self._pages if self._gateway.paginated else 1
+        first_page = getattr(self._gateway, 'first_page', 1)
 
-        for page in range(1, pages + 1):
+        for page in range(first_page, first_page + pages):
             console.log(f'Page {page} of {pages}')
             html = self._gateway.make_request(
                 url=self._url.format(page)
@@ -119,4 +122,17 @@ class ScraperServiceFactory:
             url=full_url,
             gateway=ProperatiGateway(),
             parser=ProperatiParser(),
+        )
+
+    @classmethod
+    def build_for_remax(
+        cls,
+        pages: int,
+        full_url: str
+    ) -> ScraperService:
+        return ScraperService(
+            pages=pages,
+            url=full_url,
+            gateway=RemaxGateway(),
+            parser=RemaxParser(),
         )

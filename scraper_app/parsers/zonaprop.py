@@ -7,20 +7,20 @@ from posting_app.database import Posting, PostingRepository
 
 
 class ZonapropParser(BaseParser):
-    base_info_class = 'postingCardLayout-module__posting-card-container'
-    base_info_tag = 'div'
-    link_regex = 'h3.postingCard-module__posting-description a'
-    price_regex = 'div.postingPrices-module__price'
-    description_regex = 'h3.postingCard-module__posting-description'
-    location_regex = 'h2.postingLocations-module__location-text'
-    features_regex = 'span.postingMainFeatures-module__posting-main-features-span'
+    # Zonaprop usa atributos data-qa estables (mas robustos que las clases
+    # CSS-module hasheadas, que cambian de sufijo entre releases).
+    base_info_selector = 'div[data-qa="posting PROPERTY"]'
+    link_regex = '[data-qa="POSTING_CARD_DESCRIPTION"] a'
+    price_regex = '[data-qa="POSTING_CARD_PRICE"]'
+    description_regex = '[data-qa="POSTING_CARD_DESCRIPTION"]'
+    location_regex = '[data-qa="POSTING_CARD_LOCATION"]'
+    features_regex = '[data-qa="POSTING_CARD_FEATURES"] span'
     _base_url = 'https://www.zonaprop.com.ar'
 
     def extract_data(self) -> Set[Posting]:
         '''Extracting data and returning list of postings'''
         postings = set()
-        base_info_soaps = self.soup.find_all(
-            self.base_info_tag, class_=self.base_info_class)
+        base_info_soaps = self.soup.select(self.base_info_selector)
 
         for base_info_soap in base_info_soaps:
             link_container = base_info_soap.select_one(self.link_regex)

@@ -1,6 +1,6 @@
 import yaml
 from time import sleep
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import typer
 from pydantic import BaseModel
@@ -10,12 +10,51 @@ from rich.progress import track
 
 from posting_app.database import create_db_and_tables, PostingRepository
 from posting_app.services import PostingServiceFactory
+from scraper_app.filters import (
+    AndFilter,
+    ExcluirReservadasFilter,
+    ListingFilter,
+    MaxAntiguedadFilter,
+    MinAmbientesFilter,
+    MinSuperficieCubiertaFilter,
+    PublicadaValidaFilter,
+    TiposPermitidosFilter,
+)
+from scraper_app.parsers import BaseParser, BnaParser
 from telegram_app.services import TelegramService
 
 console = Console()
 
 
 Urls = Optional[Union[str, List[str]]]
+
+
+class BnaConfig(BaseModel):
+    '''BNA +Hogares: la URL filtra barrio y precio; el resto (que la API no
+    permite filtrar) se aplica localmente. Campo en null = no filtra.'''
+    url: Urls = None
+    tipos: List[str] = []
+    antiguedad_max_anos: Optional[int] = None
+    antiguedad_max_anos_por_tipo: Dict[str, int] = {}
+    ambientes_min: Optional[int] = None
+    superficie_cubierta_min_m2: Optional[float] = None
+    excluir_reservadas: bool = True
+
+    def build_filter(self) -> ListingFilter:
+        filters: List[ListingFilter] = [PublicadaValidaFilter()]
+        if self.tipos:
+            filters.append(TiposPermitidosFilter(self.tipos))
+        if self.antiguedad_max_anos is not None:
+            filters.append(MaxAntiguedadFilter(
+                self.antiguedad_max_anos, self.antiguedad_max_anos_por_tipo
+            ))
+        if self.ambientes_min is not None:
+            filters.append(MinAmbientesFilter(self.ambientes_min))
+        if self.superficie_cubierta_min_m2 is not None:
+            filters.append(MinSuperficieCubiertaFilter(self.superficie_cubierta_min_m2))
+        if self.excluir_reservadas:
+            filters.append(ExcluirReservadasFilter())
+        return AndFilter(filters)
 
 
 class Config(BaseModel):
@@ -33,6 +72,8 @@ class Config(BaseModel):
     la_voz_full_url: Urls = None
     properati_full_url: Urls = None
     remax_full_url: Urls = None
+    roomix_full_url: Urls = None
+    bna: Optional[BnaConfig] = None
 
 
 def as_url_list(urls: Urls) -> List[str]:
@@ -46,7 +87,7 @@ def as_url_list(urls: Urls) -> List[str]:
 
 def main(config_path: str):
     # LOAD CONFIG
-    with open(config_path) as config_json:
+    with open(config_path, encoding='utf-8') as config_json:
         config_dict = yaml.safe_load(config_json)
 
     try:
@@ -62,25 +103,37 @@ def main(config_path: str):
     create_db_and_tables()
     console.log('Database loaded', style='italic bold green')
 
-    # Cada entrada mapea un sitio a su builder; cada sitio puede tener varias URLs.
-    site_builders = [
-        (config.zonaprop_full_url, PostingServiceFactory.build_for_zonaprop),
-        (config.argenprop_full_url, PostingServiceFactory.build_for_argenprop),
-        (config.mercadolibre_full_url, PostingServiceFactory.build_for_mercadolibre),
-        (config.la_voz_full_url, PostingServiceFactory.build_for_la_voz),
-        (config.properati_full_url, PostingServiceFactory.build_for_properati),
-        (config.remax_full_url, PostingServiceFactory.build_for_remax),
+    # Cada entrada: (urls del config, sitio, parser inyectado o None).
+    sites: List[Tuple[Urls, str, Optional[BaseParser]]] = [
+        (config.zonaprop_full_url, 'zonaprop', None),
+        (config.argenprop_full_url, 'argenprop', None),
+        (config.mercadolibre_full_url, 'mercadolibre', None),
+        (config.la_voz_full_url, 'la_voz', None),
+        (config.properati_full_url, 'properati', None),
+        (config.remax_full_url, 'remax', None),
+        (config.roomix_full_url, 'roomix', None),
     ]
+    if config.bna:
+        sites.append((config.bna.url, 'bna', BnaParser(config.bna.build_filter())))
 
     while(True):
         # SCRAP POSTINGS
-        for urls, build_posting_service in site_builders:
+        for urls, site, parser in sites:
             for url in as_url_list(urls):
-                posting_service = build_posting_service(
+                posting_service = PostingServiceFactory.build(
+                    site=site,
                     pages=config.pages,
                     full_url=url,
+                    parser=parser,
                 )
-                posting_service.scrap_and_create_postings()
+                # Un sitio caido o que cambio su HTML no debe frenar al resto.
+                try:
+                    posting_service.scrap_and_create_postings()
+                except Exception as ex:  # noqa: BLE001
+                    console.log(
+                        f'[bold u]ERROR[/bold u]: fallo {site} ({url[:80]}...): {ex!r}',
+                        style='red'
+                    )
 
         console.log('Postings scrapped', style='italic bold green')
 

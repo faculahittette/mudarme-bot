@@ -13,13 +13,15 @@ class ArgenpropParser(BaseParser):
     base_info_tag = "div"
     link_regex = "a.card"
     price_regex = "p.card__price"
-    description_regex = "p.card__title--primary"
+    description_regex = "p.card__info"
+    features_regex = "ul.card__main-features li"
     location_regex = "p.card__address"
     title_regex = "h2.card__title, p.card__title--primary"
 
     def extract_data(self) -> Set[Posting]:
         """Extracting data and returning list of objects"""
         postings = set()
+        self.page_keys = set()
         base_info_soaps = self.soup.find_all(
             self.base_info_tag, class_=self.base_info_class)
 
@@ -36,10 +38,22 @@ class ArgenpropParser(BaseParser):
 
             href = "{}{}".format(self.url_base, link_container.get("href", ""))
             title = self.sanitize_text(title_container.get_text())
+            self.page_keys.add(href)
             sha = self.get_id(href)
             price = self.sanitize_text(price_container.get_text()) if price_container else ''
-            description = self.sanitize_text(description_container.get_text())
-            location = self.sanitize_text(location_container.get_text())
+            # Las features (m2, dorm, antiguedad, ambientes) dicen mas que el
+            # texto libre; si no estan, caemos a un extracto de la descripcion.
+            features = [
+                self.sanitize_text(li.get_text())
+                for li in base_info_soap.select(self.features_regex)
+            ]
+            if features:
+                description = ' | '.join(features)
+            elif description_container:
+                description = self.sanitize_text(description_container.get_text())[:140]
+            else:
+                description = ''
+            location = self.sanitize_text(location_container.get_text()) if location_container else ''
 
             posting_repository = PostingRepository()
             if posting_repository.get_posting_by_sha(sha):

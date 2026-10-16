@@ -5,3 +5,5 @@ from .mercadolibre import MercadolibreParser
 from .lavoz import LaVozParser
 from .properati import ProperatiParser
 from .remax import RemaxParser
+from .bna import BnaParser
+from .roomix import RoomixParser

@@ -17,9 +17,28 @@ class ZonapropParser(BaseParser):
     features_regex = '[data-qa="POSTING_CARD_FEATURES"] span'
     _base_url = 'https://www.zonaprop.com.ar'
 
+    @staticmethod
+    def _title_from_url(href: str) -> str:
+        '''`.../clasificado/veclapin-venta-depto-3-amb-en-caballito-60369197.html`
+        -> `Venta depto 3 amb en caballito`.'''
+        slug = href.rstrip('/').rsplit('/', 1)[-1].rsplit('.', 1)[0]
+        words = [w for w in slug.split('-') if w]
+        if words and words[0].isalpha() and len(words[0]) == 8 and words[0].startswith('vec'):
+            words = words[1:]  # prefijo de tipo de aviso (`veclapin`, `veclcain`...)
+        if words and words[-1].isdigit():
+            words = words[:-1]  # id del aviso
+        return ' '.join(words).capitalize()[:100]
+
+    def _excerpt(self, link_container) -> str:
+        raw = link_container.get_text(separator=' ').strip()
+        if 'Descripción' in raw:
+            raw = raw.split('Descripción')[0]
+        return self.sanitize_text(raw)[:100]
+
     def extract_data(self) -> Set[Posting]:
         '''Extracting data and returning list of postings'''
         postings = set()
+        self.page_keys = set()
         base_info_soaps = self.soup.select(self.base_info_selector)
 
         for base_info_soap in base_info_soaps:
@@ -32,18 +51,18 @@ class ZonapropParser(BaseParser):
                 # price may be 'Consultar precio' or missing, but link/description/location are required
                 continue
 
+            # Sin query string: trae parametros de tracking (n_search_id...)
+            # que cambian en cada request.
             href = '{}{}'.format(
                 self._base_url,
-                link_container.get('href', ''),
+                link_container.get('href', '').split('?')[0],
             )
 
-            # Short title: take first line or first 100 chars
-            raw_title = link_container.get_text(separator=' ').strip()
-            # sometimes Zonaprop uses long descriptions; split on 'Descripción' to keep concise
-            if 'Descripción' in raw_title:
-                raw_title = raw_title.split('Descripción')[0]
-            title = self.sanitize_text(raw_title)[:100]
+            # El texto del link es un extracto de la descripcion (a veces vacio,
+            # ej: emprendimientos). El titulo real del aviso viaja en el slug.
+            title = self._title_from_url(href) or self._excerpt(link_container)
 
+            self.page_keys.add(href)
             sha = self.get_id(href)
             price = self.sanitize_text(price_container.get_text()) if price_container else ''
 

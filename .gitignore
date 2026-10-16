@@ -8,3 +8,6 @@ config.json
 config.yaml
 *.db
 *.sqlite3
+meli_token.json
+last_run.log
+send_failures.log

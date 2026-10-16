@@ -1,0 +1,101 @@
+{
+ "internalStatus": "SUCCESS",
+ "response": {
+  "totalItems": 4,
+  "totalPages": 1,
+  "nextPage": false,
+  "data": [
+   {
+    "id": 3537,
+    "titulo": "Depto 3 dorm c/dependencia Venta Caballito",
+    "tipo": "Departamento",
+    "estadoPropiedad": "Usado",
+    "estadoReserva": "Disponible",
+    "precio": 169000,
+    "moneda": "USD",
+    "antiguedadAnos": 10,
+    "ambientes": null,
+    "superficieCubierta": 93,
+    "localidad": "Caballito",
+    "direccionDescripcion": "Av. J. M. Moreno 700, Caballito",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "id": 3538,
+    "titulo": "Depto viejo",
+    "tipo": "Departamento",
+    "estadoReserva": "Disponible",
+    "precio": 150000,
+    "moneda": "USD",
+    "antiguedadAnos": 46,
+    "superficieCubierta": 80,
+    "localidad": "Caballito",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "id": 3539,
+    "titulo": "PH 18 anos",
+    "tipo": "PH",
+    "estadoReserva": "Disponible",
+    "precio": 150000,
+    "moneda": "USD",
+    "antiguedadAnos": 18,
+    "ambientes": 4,
+    "superficieCubierta": 90,
+    "localidad": "Villa Crespo",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "id": 3540,
+    "titulo": "Reservado",
+    "tipo": "Departamento",
+    "estadoReserva": "Reservado",
+    "precio": 150000,
+    "moneda": "USD",
+    "antiguedadAnos": 5,
+    "superficieCubierta": 90,
+    "localidad": "Villa Crespo",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "id": 3541,
+    "titulo": "Chiquito",
+    "tipo": "Departamento",
+    "estadoReserva": "Disponible",
+    "precio": 95000,
+    "moneda": "USD",
+    "antiguedadAnos": 5,
+    "ambientes": 2,
+    "superficieCubierta": 40,
+    "localidad": "Villa Crespo",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "id": 3542,
+    "titulo": "Local",
+    "tipo": "Local",
+    "estadoReserva": "Disponible",
+    "precio": 95000,
+    "moneda": "USD",
+    "superficieCubierta": 100,
+    "localidad": "Villa Crespo",
+    "publicado": true,
+    "bloqueado": false,
+    "eliminado": false
+   },
+   {
+    "titulo": "sin id"
+   }
+  ]
+ }
+}

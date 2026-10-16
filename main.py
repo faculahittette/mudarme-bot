@@ -1,4 +1,5 @@
 import yaml
+from pathlib import Path
 from time import sleep
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -8,7 +9,12 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import track
 
-from posting_app.database import create_db_and_tables, PostingRepository
+from posting_app.database import (
+    PostingRepository,
+    configure_database,
+    create_db_and_tables,
+    database_label,
+)
 from posting_app.services import PostingServiceFactory
 from scraper_app.filters import (
     AndFilter,
@@ -22,6 +28,7 @@ from scraper_app.filters import (
 )
 from scraper_app.parsers import BaseParser, BnaParser
 from telegram_app.services import TelegramService
+from run_log import tee_output_to
 
 console = Console()
 
@@ -74,6 +81,9 @@ class Config(BaseModel):
     remax_full_url: Urls = None
     roomix_full_url: Urls = None
     bna: Optional[BnaConfig] = None
+    # Base compartida (ej. Postgres en Neon) para correr desde varias compus
+    # sin repetir envios. Vacio = SQLite local (scrapdep.db).
+    database_url: Optional[str] = None
 
 
 def as_url_list(urls: Urls) -> List[str]:
@@ -100,8 +110,9 @@ def main(config_path: str):
     console.log('Configuration read correctly', style='italic bold green')
     
     # LOAD DATABASE
+    configure_database(config.database_url)
     create_db_and_tables()
-    console.log('Database loaded', style='italic bold green')
+    console.log(f'Database loaded: {database_label()}', style='italic bold green')
 
     # Cada entrada: (urls del config, sitio, parser inyectado o None).
     sites: List[Tuple[Urls, str, Optional[BaseParser]]] = [
@@ -147,11 +158,14 @@ def main(config_path: str):
         )
         console.log(f'About to send [u]{len(unsent_postings)}[/u] postings')
         for posting in track(unsent_postings, description='Sending postings...'):
+            # Primero lo "reservo" en la base: si otra compu ya lo mando (o lo
+            # esta mandando ahora), lo salteo. Asi no hay duplicados en el grupo.
+            if not posting_repository.claim_for_sending(posting.sha):
+                continue
             # Try sending with automatic retries and backoff (respects Telegram's retry_after when detected)
             ok = telegram_service.send_with_retries(posting, max_retries=3, backoff_base=2)
-            if ok:
-                posting_repository.set_posting_as_sent(posting.sha)
-            else:
+            if not ok:
+                posting_repository.release_claim(posting.sha)
                 console.log(
                     (
                         '[bold u]WARNING[/bold u]: '
@@ -169,4 +183,6 @@ def main(config_path: str):
 
 
 if __name__ == '__main__':
+    # Todo lo que se ve en consola queda tambien en last_run.log, al lado de main.py.
+    tee_output_to(Path(__file__).resolve().parent / 'last_run.log')
     typer.run(main)

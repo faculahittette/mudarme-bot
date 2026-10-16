@@ -14,6 +14,13 @@ chat_room: "TU_CHAT_ID"
 # true = loop infinito; false = una sola corrida.
 persist: false
 
+# Base de datos compartida (opcional). Si la completan en las dos compus con la
+# MISMA url (ej: Postgres gratis de Neon), el estado se comparte y no se
+# repiten avisos sin importar quien corra el bot. Vacio = SQLite local
+# (scrapdep.db). La variable de entorno DATABASE_URL tiene prioridad.
+#   database_url: "postgresql://usuario:clave@ep-xxxx.sa-east-1.aws.neon.tech/neondb?sslmode=require"
+database_url: null
+
 # URLs de busqueda YA filtradas (zona, precio, ambientes, antiguedad, apto credito).
 # Reemplazar el numero de pagina por {}.
 # Comenta (o deja en null) las que no uses.

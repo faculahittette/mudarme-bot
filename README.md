@@ -110,3 +110,19 @@ python main.py ./config.yaml
 ```
 
 Listo! :tada: Ahora te deberían empezar a llegar mensajes desde tu bot.
+
+## Correr desde varias compus (base compartida) :busts_in_silhouette:
+
+Por defecto el estado (avisos vistos/enviados) vive en `scrapdep.db`, local a
+cada compu. Para que dos personas puedan correr el bot sin repetir mensajes:
+
+1. Crear una base Postgres gratis (ej. [Neon](https://neon.tech)) y copiar el
+   *connection string*.
+2. En el `config.yaml` de **cada** compu, completar `database_url` con ese string.
+3. Una sola vez, migrar lo que ya estaba en la base local:
+   `venv\Scripts\python.exe scripts\migrate_to_shared_db.py`
+4. Correr como siempre (`run_daily.bat`). Al arrancar, el log muestra a qué base
+   se conectó (sin la contraseña).
+
+Aunque las dos compus corran a la vez, cada aviso se "reserva" en la base con un
+UPDATE atómico antes de mandarlo, así que llega una sola vez al grupo.

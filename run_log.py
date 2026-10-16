@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-_ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
+# Colores (CSI) y links clickeables de la terminal (OSC 8) que mete rich.
+_ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)')
 
 
 class _Tee:

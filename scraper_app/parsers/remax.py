@@ -40,6 +40,7 @@ class RemaxParser(BaseParser):
 
     def extract_data(self) -> Set[Posting]:
         postings = set()
+        self.page_keys = set()
         try:
             payload = json.loads(self._raw) if getattr(self, '_raw', '') else {}
         except (ValueError, TypeError):
@@ -60,6 +61,7 @@ class RemaxParser(BaseParser):
             else:
                 continue
 
+            self.page_keys.add(href)
             sha = self.get_id(href)
             if posting_repository.get_posting_by_sha(sha):
                 continue

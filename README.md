@@ -10,6 +10,9 @@ Este proyecto busca inmuebles en algunas páginas con los filtros que quieras y 
 - [Argenprop](https://www.argenprop.com/)
 - [Mercadolibre](https://www.mercadolibre.com.ar)
 - [Properati](https://www.properati.com.ar/)
+- [RE/MAX](https://www.remax.com.ar/)
+- [Roomix](https://roomix.ai/)
+- [BNA +Hogares](https://mashogaresconbna.com.ar/) (con filtros locales de antigüedad, ambientes y superficie)
 
 ## Instalación :wrench:
 

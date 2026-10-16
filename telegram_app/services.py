@@ -12,10 +12,15 @@ class TelegramService:
     def __init__(
         self,
         bot_token: str,
-        chat_room: str
+        chat_room: str,
+        min_interval_seconds: float = 3.1,
     ):
         self._bot_token = bot_token
         self._chat_room = chat_room
+        # Telegram limita a ~20 mensajes/minuto por grupo. Espaciar los envios
+        # evita la catarata de 429 cuando hay muchas publicaciones nuevas.
+        self._min_interval = min_interval_seconds
+        self._last_post_at = 0.0
 
     def format_posting_to_message(self, posting: Posting) -> str:
         '''Formats the object into a Telegram message.'''
@@ -25,14 +30,16 @@ class TelegramService:
         location = escape(posting.location or '')
         description = escape(posting.description or '')
 
-        msg = '<a href="{}"><b>{}</b></a>\n{}<i>{}</i>\n{}<i>{}</i>\n\n{}'.format(
-            posting.url,
-            title,
+        # El link va aparte y con texto fijo: si el titulo viene vacio, un
+        # <a> sin texto queda invisible y el mensaje llega "sin link".
+        msg = '<b>{}</b>\n{}<i>{}</i>\n{}<i>{}</i>\n\n{}\n\n<a href="{}">Ver publicación</a>'.format(
+            title or 'Propiedad en venta',
             u'\U0001F4B0',
             price,
             u'\U0001F4CD',
             location,
             description,
+            escape(posting.url, quote=True),
         )
 
         return msg
@@ -45,7 +52,11 @@ class TelegramService:
             'text': msg_text,
             'parse_mode': 'HTML',
         }
+        wait = self._min_interval - (time.monotonic() - self._last_post_at)
+        if wait > 0:
+            time.sleep(wait)
         try:
+            self._last_post_at = time.monotonic()
             res = requests.post(api_url, data=params, timeout=10)
             return res
         except requests.RequestException:
@@ -61,8 +72,8 @@ class TelegramService:
         price = escape((posting.price or '').strip())
         location = escape((posting.location or '').strip())
         minimal = '<a href="{}"><b>{}</b></a>\n{}<i>{}</i>\n{}<i>{}</i>'.format(
-            posting.url,
-            title or posting.sha,
+            escape(posting.url, quote=True),
+            title or 'Ver publicación',
             u'\U0001F4B0',
             price,
             u'\U0001F4CD',

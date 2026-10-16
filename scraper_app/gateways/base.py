@@ -1,7 +1,6 @@
 from abc import ABC
 
 import cloudscraper
-from requests.exceptions import InvalidSchema
 from rich.console import Console
 
 console = Console()
@@ -10,6 +9,7 @@ console = Console()
 class BaseGateway(ABC):
     paginated = True
     first_page = 1
+    timeout_seconds = 30
 
     def page_param(self, page: int) -> int:
         '''
@@ -36,13 +36,15 @@ class BaseGateway(ABC):
         )
 
         try:
-            res = scraper.get(url)
-        except InvalidSchema as e:
+            res = scraper.get(url, timeout=self.timeout_seconds)
+        except Exception as e:  # noqa: BLE001 - red/anti-bot: logueamos y seguimos
             console.log(
-                '[bold u]ERROR[/bold u]: {} raised InvalidSchema.\n {}'.format(
-                     self._name, e
-                )
+                '[bold u]ERROR[/bold u]: {} fallo el request: {}'.format(
+                    self._name, e
+                ),
+                style='red'
             )
+            return html
 
         if res.ok:
             html = res.text

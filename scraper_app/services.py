@@ -1,23 +1,27 @@
-from typing import Optional, List
+from typing import Dict, Optional, Set, Tuple, Type
 
 from rich.console import Console
 
 from .gateways import (
     ArgenpropGateway,
     BaseGateway,
+    BnaGateway,
     LaVozGateway,
     MercadolibreGateway,
     ProperatiGateway,
     RemaxGateway,
+    RoomixGateway,
     ZonapropGateway,
 )
 from .parsers import (
     ArgenpropParser,
     BaseParser,
+    BnaParser,
     LaVozParser,
     MercadolibreParser,
     ProperatiParser,
     RemaxParser,
+    RoomixParser,
     ZonapropParser,
 )
 from posting_app.database import Posting
@@ -38,10 +42,15 @@ class ScraperService:
         self._gateway = gateway
         self._parser = parser
 
-    def get_postings_from_scraper(self) -> List[Posting]:
+    def get_postings_from_scraper(self) -> Set[Posting]:
         postings = set()
         pages = self._pages if self._gateway.paginated else 1
         first_page = getattr(self._gateway, 'first_page', 1)
+        # Avisos vistos en esta corrida (antes de filtrar/deduplicar). Sirve
+        # para cortar apenas se agotan los resultados en vez de pedir siempre
+        # `pages` paginas: Zonaprop, por ejemplo, devuelve la pagina 1 cuando
+        # pedis una pagina fuera de rango.
+        seen_keys: Set[str] = set()
 
         for page in range(first_page, first_page + pages):
             console.log(f'Page {page} of {pages}')
@@ -58,84 +67,45 @@ class ScraperService:
 
             postings = postings.union(new_postings)
 
+            page_keys = getattr(self._parser, 'page_keys', None)
+            if page_keys is not None:
+                if not page_keys - seen_keys:
+                    console.log('No hay avisos nuevos en esta pagina: fin de resultados')
+                    break
+                seen_keys |= page_keys
+
         return postings
+
+
+# Registro sitio -> (gateway, parser por defecto). Agregar un sitio nuevo es
+# sumar una linea aca (Open/Closed): el resto del flujo no cambia.
+SITES: Dict[str, Tuple[Type[BaseGateway], Type[BaseParser]]] = {
+    'zonaprop': (ZonapropGateway, ZonapropParser),
+    'argenprop': (ArgenpropGateway, ArgenpropParser),
+    'mercadolibre': (MercadolibreGateway, MercadolibreParser),
+    'la_voz': (LaVozGateway, LaVozParser),
+    'properati': (ProperatiGateway, ProperatiParser),
+    'remax': (RemaxGateway, RemaxParser),
+    'roomix': (RoomixGateway, RoomixParser),
+    'bna': (BnaGateway, BnaParser),
+}
 
 
 class ScraperServiceFactory:
     @classmethod
-    def build_for_zonaprop(
+    def build(
         cls,
+        site: str,
         pages: int,
-        full_url: str
+        full_url: str,
+        parser: Optional[BaseParser] = None,
     ) -> ScraperService:
+        '''Arma el scraper de `site`. `parser` permite inyectar uno ya
+        configurado (ej: BNA con sus filtros locales).'''
+        gateway_cls, parser_cls = SITES[site]
         return ScraperService(
             pages=pages,
             url=full_url,
-            gateway=ZonapropGateway(),
-            parser=ZonapropParser(),
-        )
-
-    @classmethod
-    def build_for_argenprop(
-        cls,
-        pages: int,
-        full_url: str
-    ) -> ScraperService:
-        return ScraperService(
-            pages=pages,
-            url=full_url,
-            gateway=ArgenpropGateway(),
-            parser=ArgenpropParser(),
-        )
-
-    @classmethod
-    def build_for_mercadolibre(
-        cls,
-        pages: int,
-        full_url: str
-    ) -> ScraperService:
-        return ScraperService(
-            pages=pages,
-            url=full_url,
-            gateway=MercadolibreGateway(),
-            parser=MercadolibreParser(),
-        )
-
-    @classmethod
-    def build_for_la_voz(
-        cls,
-        pages: int,
-        full_url: str
-    ) -> ScraperService:
-        return ScraperService(
-            pages=pages,
-            url=full_url,
-            gateway=LaVozGateway(),
-            parser=LaVozParser(),
-        )
-
-    @classmethod
-    def build_for_properati(
-        cls,
-        pages: int,
-        full_url: str
-    ) -> ScraperService:
-        return ScraperService(
-            pages=pages,
-            url=full_url,
-            gateway=ProperatiGateway(),
-            parser=ProperatiParser(),
-        )
-
-    @classmethod
-    def build_for_remax(
-        cls,
-        pages: int,
-        full_url: str
-    ) -> ScraperService:
-        return ScraperService(
-            pages=pages,
-            url=full_url,
-            gateway=RemaxGateway(),
-            parser=RemaxParser(),
+            gateway=gateway_cls(),
+            parser=parser or parser_cls(),
         )

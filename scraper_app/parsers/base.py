@@ -1,6 +1,6 @@
 from abc import ABC
 from hashlib import sha1
-from typing import Set
+from typing import Optional, Set
 
 from bs4 import BeautifulSoup
 
@@ -8,6 +8,11 @@ from posting_app.database import Posting
 
 
 class BaseParser(ABC):
+    #: URLs de TODOS los avisos de la ultima pagina parseada, antes de filtrar
+    #: o deduplicar contra la base. Lo usa ScraperService para cortar la
+    #: paginacion cuando una pagina no trae nada nuevo. `None` = el parser no
+    #: lo informa y se recorren siempre las `pages` configuradas.
+    page_keys: Optional[Set[str]] = None
 
     def get_soup_object(self, html: str):
         '''

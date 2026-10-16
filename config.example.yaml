@@ -1,8 +1,8 @@
 # Copia este archivo a config.yaml y completalo. Pasalo a main.py:
 #   python main.py config.yaml
 
-# Cuantas paginas recorrer por sitio (la primera pagina trae lo mas nuevo).
-pages: 3
+# Tope de paginas por URL. El bot corta solo cuando se agotan los resultados.
+pages: 30
 
 # Segundos de espera entre corridas cuando persist: true.
 sleep_time: 300
@@ -29,7 +29,28 @@ zonaprop_full_url: null
 argenprop_full_url: null
 
 # Remax: la URL del request a la API (F12 -> Network -> Fetch/XHR), con page={} (0-indexed).
+# Barrios via `locations=in::::<id>@<Nombre>,...:::` (Caballito=25009,
+# Parque Chacabuco=25027, Villa Crespo=25042). NO incluir `&landingPath=...`:
+# hace que la API ignore `locations`.
 remax_full_url: null
+
+# Roomix: armá la busqueda en roomix.ai (el buscador entiende texto libre, ej:
+# "deptos en Caballito apto credito 3 ambientes hasta 220000 usd") y copiá la URL
+# agregando `?page={}` al final (sin el `?q=...`).
+roomix_full_url: null
+
+# BNA +Hogares: URL de la API (F12 -> Network -> `/api/propiedades?...`) con
+# `&page={}` al final. Los barrios van en `ubicaciones` (ids `loc-...` que
+# devuelve `/api/ubicaciones?q=<barrio>`). Lo que la API no filtra se aplica
+# localmente con estos campos (null = no filtra):
+bna:
+  url: null
+  tipos: ["Departamento", "PH", "Dúplex", "Tríplex", "Piso", "Casa"]
+  antiguedad_max_anos: 15
+  antiguedad_max_anos_por_tipo: {"PH": 20}
+  ambientes_min: 3
+  superficie_cubierta_min_m2: 62
+  excluir_reservadas: true
 
 # Otros sitios soportados (opcionales):
 # Mercado Libre: pega la URL del navegador e inserta `_Desde_{}` en el path,

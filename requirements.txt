@@ -5,5 +5,5 @@ pydantic==2.7.4
 beautifulsoup4==4.11.1
 sqlmodel==0.0.22
 PyYAML==6.0.2
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.13
 pytest==8.2.0

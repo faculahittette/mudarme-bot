@@ -107,7 +107,7 @@ class PostingRepository:
         (rowcount == 1) y es la unica que manda el mensaje a Telegram.
         '''
         with Session(engine) as session:
-            result = session.exec(
+            result = session.execute(
                 update(Posting)
                 .where(Posting.sha == sha, Posting.sent == False)  # noqa: E712
                 .values(sent=True)
@@ -118,7 +118,7 @@ class PostingRepository:
     def release_claim(self, sha: str) -> None:
         '''Deshace el claim si el envio fallo, para reintentar en otra corrida.'''
         with Session(engine) as session:
-            session.exec(update(Posting).where(Posting.sha == sha).values(sent=False))
+            session.execute(update(Posting).where(Posting.sha == sha).values(sent=False))
             session.commit()
 
     def set_posting_as_sent(self, sha: str):

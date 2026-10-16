@@ -47,6 +47,16 @@ use la base correcta.
 
 ## Opción C — Automático todos los días (Programador de tareas)
 
+**Forma rápida:** doble clic en `programar_tarea_diaria.bat`. Crea la tarea
+`mudarme-bot` que corre todos los días a las **12:00 y 20:00** (ventana
+minimizada). Corre aunque la compu esté bloqueada, intenta despertarla si está
+suspendida y, si estaba apagada, corre apenas se prende. Hacelo en **cada**
+compu: como el estado está en la base compartida, nunca se duplican avisos.
+Para cambiar horarios, editá `$Horas` en `scripts/programar_tarea_diaria.ps1`
+y volvé a hacer doble clic.
+
+**Forma manual** (si preferís hacerlo a mano):
+
 Para que corra solo, sin que tengas que abrirlo, usá el **Programador de tareas**
 de Windows (Task Scheduler).
 

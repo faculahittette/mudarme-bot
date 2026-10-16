@@ -18,8 +18,9 @@ class PostingService:
         posting_repository = PostingRepository()
 
         console.log(f'About to save {len(postings)} postings')
-        for posting in postings:
-            posting_repository.create_posting(posting)
+        saved = sum(posting_repository.create_posting(p) for p in postings)
+        if saved < len(postings):
+            console.log(f'{len(postings) - saved} ya estaban en la base (los guardo otra compu)')
         console.log('Postings saved successfully!', style='green')
 
 

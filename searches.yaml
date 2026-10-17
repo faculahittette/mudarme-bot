@@ -1,0 +1,47 @@
+# =============================================================================
+# BUSQUEDAS (versionado en el repo, sin secretos)
+# =============================================================================
+# Lo usan las compus y GitHub Actions por igual: cambiar una busqueda aca y
+# hacer `git pull` alcanza para que todos usen la misma.
+# Los secretos (token de Telegram, chat, base) NO van aca: van en config.yaml
+# (local, fuera de git) o en variables de entorno / secretos de GitHub.
+# Cualquier clave de config.yaml pisa la de este archivo.
+# =============================================================================
+
+# Barrios: Caballito, Villa Crespo, Parque Chacabuco y Flores (actualizado 2026-10-15).
+# Todas las busquedas filtran APTO CREDITO, hasta USD 220.000, 3+ ambientes y 65+ m2.
+
+# Tope de paginas por URL. El bot corta solo cuando se agotan los resultados,
+# asi que esto es solo un limite de seguridad.
+pages: 30
+
+
+# Zonaprop: deptos hasta 10 anos + a estrenar (el filtro "hasta X anos" deja afuera los a estrenar).
+zonaprop_full_url:
+  - "https://www.zonaprop.com.ar/departamentos-venta-caballito-villa-crespo-parque-chacabuco-flores-con-apto-credito-mas-de-3-ambientes-mas-65-m2-cubiertos-hasta-10-anos-menos-220000-dolar-pagina-{}.html"
+  - "https://www.zonaprop.com.ar/departamentos-venta-caballito-villa-crespo-parque-chacabuco-flores-con-apto-credito-mas-de-3-ambientes-mas-65-m2-cubiertos-a-estrenar-menos-220000-dolar-pagina-{}.html"
+
+argenprop_full_url: "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-220000?con-aptocredito&desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos&pagina-{}"
+
+# Remax: deptos (typeId 1-8) hasta ~15 anos y PH (typeId 12) hasta ~20 anos.
+# OJO: NO agregar `&landingPath=listings`: desde 2026 hace que la API ignore
+# el filtro de `locations` y devuelva cualquier barrio.
+remax_full_url:
+  - "https://api-ar.redremax.com/remaxweb-ar/api/listings/findAllWithEntrepreneurships?page={}&pageSize=24&sort=-createdAt&in=operationId:1&eq=entrepreneurship:false&in=typeId:1,2,3,4,5,6,7,8&gte=yearBuilt:2011&pricein=1:0:220000&gte=dimensionCovered:65&eq=aptCredit:true&locations=in::::25009@Caballito,25027@Parque Chacabuco,25042@Villa Crespo,25016@Flores:::"
+  - "https://api-ar.redremax.com/remaxweb-ar/api/listings/findAllWithEntrepreneurships?page={}&pageSize=24&sort=-createdAt&in=operationId:1&eq=entrepreneurship:false&in=typeId:12&gte=yearBuilt:2006&pricein=1:0:220000&gte=dimensionCovered:65&eq=aptCredit:true&locations=in::::25009@Caballito,25027@Parque Chacabuco,25042@Villa Crespo,25016@Flores:::"
+
+# Roomix (agregador): deptos y PH. No permite filtrar por antiguedad, asi que
+# trae ~400 avisos (muchos repetidos de Zonaprop/Argenprop). Apagado por ahora:
+# descomentar la linea de abajo para activarlo.
+# roomix_full_url: "https://roomix.ai/buscar/comprar/departamentos-y-ph/en-caballito-y-en-villa-crespo-y-en-parque-chacabuco-y-en-flores/hasta-220000-usd/3-o-mas-ambientes/desde-65m2-cubiertos/etiquetas-apto-credito?page={}"
+
+# BNA +Hogares (todo es apto credito BNA). La URL filtra barrio y precio;
+# el resto se filtra localmente porque la API no lo permite.
+bna:
+  url: "https://mashogaresconbna.com.ar/api/propiedades?limit=48&ubicaciones=%5B%7B%22id%22%3A%22loc-204201001%22%2C%22tipo%22%3A%22localidad%22%2C%22provincia%22%3A%22Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%2C%22localidad%22%3A%22Caballito%22%2C%22label%22%3A%22Caballito+-+Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%7D%2C%7B%22id%22%3A%22loc-210501005%22%2C%22tipo%22%3A%22localidad%22%2C%22provincia%22%3A%22Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%2C%22localidad%22%3A%22Villa+Crespo%22%2C%22label%22%3A%22Villa+Crespo+-+Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%7D%2C%7B%22id%22%3A%22loc-204901002%22%2C%22tipo%22%3A%22localidad%22%2C%22provincia%22%3A%22Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%2C%22localidad%22%3A%22Parque+Chacabuco%22%2C%22label%22%3A%22Parque+Chacabuco+-+Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%7D%2C%7B%22id%22%3A%22loc-204901001%22%2C%22tipo%22%3A%22localidad%22%2C%22provincia%22%3A%22Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%2C%22localidad%22%3A%22Flores%22%2C%22label%22%3A%22Flores+-+Ciudad+Aut%C3%B3noma+de+Buenos+Aires%22%7D%5D&minValue=90000&maxValue=220000&page={}"
+  tipos: ["Departamento", "PH", "Dúplex", "Tríplex", "Piso", "Casa"]
+  antiguedad_max_anos: 15
+  antiguedad_max_anos_por_tipo: {"PH": 20, "Casa": 20}
+  ambientes_min: 3                 # si el aviso no informa ambientes, pasa
+  superficie_cubierta_min_m2: 62   # si no informa superficie, pasa
+  excluir_reservadas: true

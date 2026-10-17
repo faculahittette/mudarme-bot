@@ -1,3 +1,4 @@
+import os
 import yaml
 from pathlib import Path
 from time import sleep
@@ -95,10 +96,55 @@ def as_url_list(urls: Urls) -> List[str]:
     return list(urls)
 
 
-def main(config_path: str):
+ROOT = Path(__file__).resolve().parent
+
+# Secretos que se pueden pasar por entorno (ej. secretos de GitHub Actions).
+ENV_OVERRIDES = {
+    'TELEGRAM_BOT_TOKEN': 'bot_token',
+    'TELEGRAM_CHAT_ID': 'chat_room',
+    'DATABASE_URL': 'database_url',
+}
+_SITE_KEYS = {
+    'zonaprop': 'zonaprop_full_url',
+    'argenprop': 'argenprop_full_url',
+    'mercadolibre': 'mercadolibre_full_url',
+    'la_voz': 'la_voz_full_url',
+    'properati': 'properati_full_url',
+    'remax': 'remax_full_url',
+    'roomix': 'roomix_full_url',
+    'bna': 'bna',
+}
+
+
+def _read_yaml(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    with open(path, encoding='utf-8') as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def load_config_dict(config_path: Path, searches_path: Path, environ) -> dict:
+    '''Arma la configuracion en capas (cada una pisa a la anterior):
+
+    1. searches.yaml: busquedas compartidas, versionadas en el repo.
+    2. config.yaml: secretos y ajustes locales (fuera de git, puede no existir).
+    3. Variables de entorno: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATABASE_URL.
+       SKIP_SITES=argenprop,... apaga sitios (ej. los que bloquean la nube).
+    '''
+    data = {**_read_yaml(searches_path), **_read_yaml(config_path)}
+    for env_name, key in ENV_OVERRIDES.items():
+        if environ.get(env_name):
+            data[key] = environ[env_name]
+    for site in filter(None, (environ.get('SKIP_SITES') or '').split(',')):
+        data.pop(_SITE_KEYS.get(site.strip().lower(), ''), None)
+    return data
+
+
+def main(config_path: str = typer.Argument('config.yaml')):
     # LOAD CONFIG
-    with open(config_path, encoding='utf-8') as config_json:
-        config_dict = yaml.safe_load(config_json)
+    config_dict = load_config_dict(
+        Path(config_path), ROOT / 'searches.yaml', os.environ
+    )
 
     try:
         config = Config(**config_dict)
@@ -106,7 +152,7 @@ def main(config_path: str):
         console.log(
             '[bold u]ERROR[/bold u]: Config error.\n', ex, style='red'
         )
-        return
+        raise typer.Exit(code=1)
     console.log('Configuration read correctly', style='italic bold green')
     
     # LOAD DATABASE

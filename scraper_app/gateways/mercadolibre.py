@@ -1,4 +1,4 @@
-from .base import BaseGateway
+from .base import CLOUDSCRAPER, PLAIN, BaseGateway
 
 
 class MercadolibreGateway(BaseGateway):
@@ -6,6 +6,8 @@ class MercadolibreGateway(BaseGateway):
     # con 48 resultados por pagina. `_Desde_1` equivale a la primera pagina,
     # asi que un unico template `_Desde_{}` sirve para todas.
     _PER_PAGE = 48
+    # Desde una compu de casa responden los dos; el request comun es mas liviano.
+    clients = [PLAIN, CLOUDSCRAPER]
 
     def __init__(self):
         self._name = 'Mercadolibre'

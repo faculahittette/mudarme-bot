@@ -126,3 +126,20 @@ cada compu. Para que dos personas puedan correr el bot sin repetir mensajes:
 
 Aunque las dos compus corran a la vez, cada aviso se "reserva" en la base con un
 UPDATE atómico antes de mandarlo, así que llega una sola vez al grupo.
+
+## Correr desde el celu o en la nube (GitHub Actions) :iphone:
+
+El workflow `.github/workflows/mudarme-bot.yml` corre el bot en GitHub:
+
+- **Automatico** todos los dias a las 12:07 y 20:07 (hora Argentina).
+- **A mano**: en la app de GitHub -> repo -> Actions -> *mudarme-bot* -> *Run workflow*.
+
+Usa la misma base compartida que las compus, asi que nunca duplica avisos.
+Argenprop bloquea las IPs de GitHub, por eso ahi se saltea (`SKIP_SITES`) y lo
+cubren las corridas de las compus.
+
+Necesita 3 secretos en *Settings -> Secrets and variables -> Actions*:
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` y `DATABASE_URL`.
+
+> GitHub pausa los workflows programados si el repo pasa 60 dias sin actividad;
+> se reactivan desde la pestana Actions.

@@ -1,3 +1,12 @@
+# IMPORTANTE: las busquedas (URLs y filtros) viven en searches.yaml, que esta
+# versionado. Este archivo (config.yaml) es local y alcanza con los secretos:
+#
+#   bot_token: "..."
+#   chat_room: "..."
+#   database_url: "postgresql://..."
+#
+# Cualquier otra clave de abajo que pongas aca pisa la de searches.yaml.
+
 # Copia este archivo a config.yaml y completalo. Pasalo a main.py:
 #   python main.py config.yaml
 

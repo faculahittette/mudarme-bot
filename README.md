@@ -8,7 +8,7 @@ Este proyecto busca inmuebles en algunas páginas con los filtros que quieras y 
 
 - [Zonaprop](https://www.zonaprop.com.ar/)
 - [Argenprop](https://www.argenprop.com/)
-- [Mercadolibre](https://www.mercadolibre.com.ar)
+- [Mercadolibre](https://www.mercadolibre.com.ar) (desde una compu de casa)
 - [Properati](https://www.properati.com.ar/)
 - [RE/MAX](https://www.remax.com.ar/)
 - [Roomix](https://roomix.ai/)

@@ -25,6 +25,7 @@ from .parsers import (
     ZonapropParser,
 )
 from posting_app.database import Posting
+from .publication import label_from_html
 
 console = Console()
 
@@ -74,7 +75,20 @@ class ScraperService:
                     break
                 seen_keys |= page_keys
 
+        self._add_publication_dates(postings)
         return postings
+
+    def _add_publication_dates(self, postings: Set[Posting]) -> None:
+        '''Para sitios que solo muestran la antiguedad en la pagina del aviso
+        (Zonaprop, Mercado Libre): una visita extra por aviso NUEVO.'''
+        if not getattr(self._gateway, 'publication_in_detail_page', False):
+            return
+        pending = [p for p in postings if not p.published]
+        if pending:
+            console.log(f'Buscando fecha de publicacion de {len(pending)} avisos nuevos')
+        for posting in pending:
+            html = self._gateway.make_request(url=posting.url, quiet=True)
+            posting.published = label_from_html(html)
 
 
 # Registro sitio -> (gateway, parser por defecto). Agregar un sitio nuevo es

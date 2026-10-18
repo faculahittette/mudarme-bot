@@ -32,12 +32,14 @@ class TelegramService:
 
         # El link va aparte y con texto fijo: si el titulo viene vacio, un
         # <a> sin texto queda invisible y el mensaje llega "sin link".
-        msg = '<b>{}</b>\n{}<i>{}</i>\n{}<i>{}</i>\n\n{}\n\n<a href="{}">Ver publicación</a>'.format(
-            title or 'Propiedad en venta',
-            u'\U0001F4B0',
-            price,
-            u'\U0001F4CD',
-            location,
+        lines = [
+            f'<b>{title or "Propiedad en venta"}</b>',
+            f'\U0001F4B0<i>{price}</i>',
+            f'\U0001F4CD<i>{location}</i>',
+        ]
+        if posting.published:
+            lines.append(f'\U0001F4C5<i>Publicado {escape(posting.published)}</i>')
+        msg = '\n'.join(lines) + '\n\n{}\n\n<a href="{}">Ver publicación</a>'.format(
             description,
             escape(posting.url, quote=True),
         )

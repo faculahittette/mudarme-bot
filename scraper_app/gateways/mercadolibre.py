@@ -8,6 +8,7 @@ class MercadolibreGateway(BaseGateway):
     _PER_PAGE = 48
     # Desde una compu de casa responden los dos; el request comun es mas liviano.
     clients = [PLAIN, CLOUDSCRAPER]
+    publication_in_detail_page = True
 
     def __init__(self):
         self._name = 'Mercadolibre'

@@ -48,11 +48,15 @@ class BaseGateway(ABC):
         '''
         return page
 
-    def make_request(self, url: str) -> str:
+    # True si la pagina de cada aviso dice "Publicado hace X" (ver ScraperService).
+    publication_in_detail_page = False
+
+    def make_request(self, url: str, quiet: bool = False) -> str:
         '''GET con el primer cliente que responda OK. Devuelve '' si ninguno.'''
-        console.log(
-            'On my way to [bold cyan]GET[/bold cyan] [u]{}[/u]'.format(self._name)
-        )
+        if not quiet:
+            console.log(
+                'On my way to [bold cyan]GET[/bold cyan] [u]{}[/u]'.format(self._name)
+            )
         for client_name, make_session in self.clients:
             try:
                 res = make_session().get(url, timeout=self.timeout_seconds)
@@ -63,7 +67,8 @@ class BaseGateway(ABC):
                 )
                 continue
             if res.ok:
-                console.log(f'{self._name} responded OK!', style='green')
+                if not quiet:
+                    console.log(f'{self._name} responded OK!', style='green')
                 return res.text
             console.log(
                 f'[bold u]ERROR[/bold u]: {self._name} ({client_name}) responded'

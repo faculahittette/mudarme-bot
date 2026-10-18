@@ -1,7 +1,7 @@
 import os
 from typing import Optional, List
 
-from sqlalchemy import update
+from sqlalchemy import inspect, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import (
     create_engine,
@@ -27,6 +27,8 @@ class Posting(SQLModel, table=True):
     location: Optional[str] = None
     description: Optional[str] = None
     sent: bool = Field(default=False, index=True)
+    # Antiguedad del aviso al detectarlo ("hace 13 días"). None = el sitio no la expone.
+    published: Optional[str] = None
 
     def __key(self):
         return (self.id, self.sha)
@@ -68,6 +70,16 @@ def database_label() -> str:
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns():
+    '''Migracion minima: create_all no agrega columnas nuevas a una tabla que
+    ya existe (ej. la base compartida). Las agregamos aca, de forma idempotente.'''
+    existing = {c['name'] for c in inspect(engine).get_columns('posting')}
+    with engine.begin() as conn:
+        if 'published' not in existing:
+            conn.execute(text('ALTER TABLE posting ADD COLUMN published VARCHAR'))
 
 
 class PostingRepository:

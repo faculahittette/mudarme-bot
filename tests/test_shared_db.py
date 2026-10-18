@@ -51,3 +51,17 @@ def test_env_var_wins_over_config(monkeypatch, tmp_path):
     monkeypatch.setenv('DATABASE_URL', f'sqlite:///{tmp_path}/env.db')
     db.configure_database(f'sqlite:///{tmp_path}/config.db')
     assert db.database_label().endswith('env.db')
+
+
+def test_adds_published_column_to_existing_table(tmp_path, monkeypatch):
+    import sqlite3
+    path = tmp_path / 'vieja.db'
+    with sqlite3.connect(path) as c:  # tabla como estaba antes de `published`
+        c.execute('CREATE TABLE posting (id INTEGER PRIMARY KEY, sha VARCHAR UNIQUE, url VARCHAR UNIQUE, '
+                  'title VARCHAR, price VARCHAR, location VARCHAR, description VARCHAR, sent BOOLEAN)')
+        c.execute("INSERT INTO posting (sha, url, sent) VALUES ('a', 'https://x/a', 1)")
+    monkeypatch.delenv('DATABASE_URL', raising=False)
+    db.configure_database(f'sqlite:///{path}')
+    db.create_db_and_tables()
+    db.create_db_and_tables()  # idempotente
+    assert PostingRepository().create_posting(Posting(sha='b', url='https://x/b', published='hoy'))

@@ -2,7 +2,10 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Set
 
+from datetime import datetime
+
 from .base import BaseParser
+from scraper_app.publication import relative_label
 from posting_app.database import Posting, PostingRepository
 
 
@@ -43,6 +46,7 @@ class RoomixParser(BaseParser):
                 price=_format_price(item),
                 location=_clean(item.get('location_address')) or _clean(item.get('location_city')) or '',
                 description=_describe(item),
+                published=relative_label(_parse_date(item.get('publication_date'))),
             ))
 
         return postings
@@ -64,6 +68,13 @@ class RoomixParser(BaseParser):
                 yield json.loads(match.group(1))
             except ValueError:
                 continue
+
+
+def _parse_date(value: Any) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(value) if isinstance(value, str) and value[:4].isdigit() else None
+    except ValueError:
+        return None
 
 
 def _clean(value: Any) -> Optional[str]:

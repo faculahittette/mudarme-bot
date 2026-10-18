@@ -1,10 +1,12 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Set
 
 from .base import BaseParser
 from posting_app.database import Posting, PostingRepository
 from scraper_app.filters import AndFilter, ListingFilter
+from scraper_app.publication import relative_label
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class BnaListing:
     publicado: bool
     bloqueado: bool
     eliminado: bool
+    fecha_creacion: Optional[datetime] = None
 
     @classmethod
     def from_api(cls, raw: Dict[str, Any]) -> 'BnaListing':
@@ -49,6 +52,7 @@ class BnaListing:
             publicado=bool(raw.get('publicado', False)),
             bloqueado=bool(raw.get('bloqueado', False)),
             eliminado=bool(raw.get('eliminado', False)),
+            fecha_creacion=_as_datetime(raw.get('fechaCreacion')),
         )
 
 
@@ -95,6 +99,7 @@ class BnaParser(BaseParser):
                 price=_format_price(listing.precio, listing.moneda),
                 location=_join([listing.localidad, listing.direccion], ' · '),
                 description=_describe(listing),
+                published=relative_label(listing.fecha_creacion),
             ))
 
         return postings
@@ -130,6 +135,13 @@ def _format_price(precio: Optional[float], moneda: Optional[str]) -> str:
 
 def _join(parts: Iterable[Optional[str]], sep: str) -> str:
     return sep.join(p for p in parts if p)
+
+
+def _as_datetime(value: Any) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(str(value).replace('Z', '+00:00')) if value else None
+    except ValueError:
+        return None
 
 
 def _as_int(value: Any) -> Optional[int]:

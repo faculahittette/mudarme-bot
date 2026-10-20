@@ -2,7 +2,7 @@ import json
 from typing import Set
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class RemaxParser(BaseParser):
@@ -46,7 +46,6 @@ class RemaxParser(BaseParser):
         except (ValueError, TypeError):
             return postings
 
-        posting_repository = PostingRepository()
 
         for item in self._iter_listings(payload):
             if not isinstance(item, dict):
@@ -63,9 +62,6 @@ class RemaxParser(BaseParser):
 
             self.page_keys.add(href)
             sha = self.get_id(href)
-            if posting_repository.get_posting_by_sha(sha):
-                continue
-
             title = self.sanitize_text(item.get('title') or '')[:100]
             price = self._format_price(item)
             # geoLabel trae el barrio ("Caballito, Capital Federal");

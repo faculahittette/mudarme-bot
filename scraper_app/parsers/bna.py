@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Set
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 from scraper_app.filters import AndFilter, ListingFilter
 from scraper_app.publication import relative_label
 
@@ -74,7 +74,6 @@ class BnaParser(BaseParser):
     def extract_data(self) -> Set[Posting]:
         self.page_keys = set()
         postings: Set[Posting] = set()
-        posting_repository = PostingRepository()
 
         for raw in self._iter_raw_items():
             try:
@@ -89,9 +88,6 @@ class BnaParser(BaseParser):
                 continue
 
             sha = self.get_id(href)
-            if posting_repository.get_posting_by_sha(sha):
-                continue
-
             postings.add(Posting(
                 sha=sha,
                 url=href,

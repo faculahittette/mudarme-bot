@@ -3,7 +3,7 @@ from typing import Set
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class ArgenpropParser(BaseParser):
@@ -54,10 +54,6 @@ class ArgenpropParser(BaseParser):
             else:
                 description = ''
             location = self.sanitize_text(location_container.get_text()) if location_container else ''
-
-            posting_repository = PostingRepository()
-            if posting_repository.get_posting_by_sha(sha):
-                continue
 
             new_posting = Posting(
                 sha=sha,

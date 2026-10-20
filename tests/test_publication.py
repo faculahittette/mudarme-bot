@@ -44,9 +44,12 @@ class _Parser:
         return {Posting(sha='a', url='https://x/a', title='t')}
 
 
-def test_scraper_fetches_publication_only_for_new_postings():
+def test_scraper_fetches_publication_on_demand():
     gw = _DetailGateway()
-    postings = ScraperService(pages=1, url='u{}', gateway=gw, parser=_Parser()).get_postings_from_scraper()
+    svc = ScraperService(pages=1, url='u{}', gateway=gw, parser=_Parser())
+    postings = svc.get_postings_from_scraper()
+    assert gw.detail_calls == []  # el listado solo, sin visitar cada aviso
+    svc.add_publication_dates(postings)
     assert [p.published for p in postings] == ['hace 5 días']
     assert gw.detail_calls == ['https://x/a']
 

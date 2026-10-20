@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Set, Tuple, Type
+from typing import Dict, Iterable, Optional, Set, Tuple, Type
 
 from rich.console import Console
 
@@ -64,7 +64,7 @@ class ScraperService:
 
             self._parser.get_soup_object(html=html)
             new_postings = self._parser.extract_data()
-            console.log(f'Got {len(new_postings)} new postings')
+            console.log(f'Got {len(new_postings)} postings')
 
             postings = postings.union(new_postings)
 
@@ -75,12 +75,12 @@ class ScraperService:
                     break
                 seen_keys |= page_keys
 
-        self._add_publication_dates(postings)
         return postings
 
-    def _add_publication_dates(self, postings: Set[Posting]) -> None:
+    def add_publication_dates(self, postings: Iterable[Posting]) -> None:
         '''Para sitios que solo muestran la antiguedad en la pagina del aviso
-        (Zonaprop, Mercado Libre): una visita extra por aviso NUEVO.'''
+        (Zonaprop, Mercado Libre): una visita extra por aviso. Se llama solo
+        con los avisos NUEVOS, para no visitar todo el listado en cada corrida.'''
         if not getattr(self._gateway, 'publication_in_detail_page', False):
             return
         pending = [p for p in postings if not p.published]

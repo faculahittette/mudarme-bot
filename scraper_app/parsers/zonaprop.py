@@ -3,7 +3,7 @@ from typing import Set
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class ZonapropParser(BaseParser):
@@ -75,10 +75,6 @@ class ZonapropParser(BaseParser):
                 description = self.sanitize_text(description_container.get_text())[:140]
 
             location = self.sanitize_text(location_container.get_text())
-
-            posting_repository = PostingRepository()
-            if posting_repository.get_posting_by_sha(sha):
-                continue
 
             new_posting = Posting(
                 sha=sha,

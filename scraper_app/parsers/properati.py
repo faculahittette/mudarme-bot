@@ -3,7 +3,7 @@ from typing import Set
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class ProperatiParser(BaseParser):
@@ -38,10 +38,6 @@ class ProperatiParser(BaseParser):
             sha = self.get_id(href)
             price = self.sanitize_text(price_container.text)
             location = self.sanitize_text(location_container.text)
-
-            posting_repository = PostingRepository()
-            if posting_repository.get_posting_by_sha(sha):
-                continue
 
             new_posting = Posting(
                 sha=sha,

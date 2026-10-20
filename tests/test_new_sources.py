@@ -10,19 +10,9 @@ from scraper_app.services import ScraperService
 FIXTURES = Path(__file__).parent / 'fixtures'
 
 
-@pytest.fixture
-def empty_repo(monkeypatch):
-    '''Aisla de la base real: ningun sha existe todavia.'''
-    for module in ('bna', 'roomix'):
-        monkeypatch.setattr(
-            f'scraper_app.parsers.{module}.PostingRepository.get_posting_by_sha',
-            lambda self, sha: None,
-        )
-
-
 # ---------------------------------------------------------------- Roomix
 
-def test_roomix_parses_initial_results_split_across_chunks(empty_repo):
+def test_roomix_parses_initial_results_split_across_chunks():
     parser = RoomixParser()
     parser.get_soup_object(html=(FIXTURES / 'roomix_sample.html').read_text(encoding='utf-8'))
     postings = {p.url: p for p in parser.extract_data()}
@@ -35,7 +25,7 @@ def test_roomix_parses_initial_results_split_across_chunks(empty_repo):
     assert parser.page_keys == set(postings)
 
 
-def test_roomix_ignores_rsc_references_and_missing_price(empty_repo):
+def test_roomix_ignores_rsc_references_and_missing_price():
     parser = RoomixParser()
     parser.get_soup_object(html=(FIXTURES / 'roomix_sample.html').read_text(encoding='utf-8'))
     postings = {p.url.rsplit('-', 1)[-1]: p for p in parser.extract_data()}
@@ -45,7 +35,7 @@ def test_roomix_ignores_rsc_references_and_missing_price(empty_repo):
     assert postings['2ec4dc71'].price == 'Consultar precio'
 
 
-def test_roomix_without_results_returns_empty_page(empty_repo):
+def test_roomix_without_results_returns_empty_page():
     parser = RoomixParser()
     parser.get_soup_object(html='<html>sin payload</html>')
     assert parser.extract_data() == set()
@@ -71,7 +61,7 @@ def _parse(parser: BnaParser, payload: str):
     return {p.url.rsplit('/', 1)[-1]: p for p in parser.extract_data()}
 
 
-def test_bna_applies_local_filters(empty_repo):
+def test_bna_applies_local_filters():
     postings = _parse(_bna_parser(), (FIXTURES / 'bna_sample.json').read_text(encoding='utf-8'))
 
     # 3537: pasa (ambientes null no bloquea). 3539: PH de 18 anos pasa por override.
@@ -84,7 +74,7 @@ def test_bna_applies_local_filters(empty_repo):
     assert 'Apto crédito BNA' in p.description
 
 
-def test_bna_page_keys_include_filtered_items(empty_repo):
+def test_bna_page_keys_include_filtered_items():
     parser = _bna_parser()
     _parse(parser, (FIXTURES / 'bna_sample.json').read_text(encoding='utf-8'))
     # Las claves cuentan TODO lo que vino en la pagina (no solo lo que pasa
@@ -97,7 +87,7 @@ def test_bna_page_keys_include_filtered_items(empty_repo):
     '<html>502</html>',
     '',
 ])
-def test_bna_handles_empty_or_broken_responses(empty_repo, payload):
+def test_bna_handles_empty_or_broken_responses(payload):
     parser = _bna_parser()
     assert _parse(parser, payload) == {}
     assert parser.page_keys == set()

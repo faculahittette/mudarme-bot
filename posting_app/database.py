@@ -1,5 +1,5 @@
 import os
-from typing import Optional, List
+from typing import Dict, Iterable, List, Optional
 
 from sqlalchemy import inspect, text, update
 from sqlalchemy.exc import IntegrityError
@@ -29,6 +29,9 @@ class Posting(SQLModel, table=True):
     sent: bool = Field(default=False, index=True)
     # Antiguedad del aviso al detectarlo ("hace 13 días"). None = el sitio no la expone.
     published: Optional[str] = None
+    # Precio anterior cuando el aviso bajo de precio (para el mensaje
+    # "Bajo de precio"). None = aviso nuevo, sin cambios de precio.
+    previous_price: Optional[str] = None
 
     def __key(self):
         return (self.id, self.sha)
@@ -73,13 +76,21 @@ def create_db_and_tables():
     _add_missing_columns()
 
 
+# Columnas agregadas despues de crear la base compartida.
+_ADDED_COLUMNS = {
+    'published': 'VARCHAR',
+    'previous_price': 'VARCHAR',
+}
+
+
 def _add_missing_columns():
     '''Migracion minima: create_all no agrega columnas nuevas a una tabla que
     ya existe (ej. la base compartida). Las agregamos aca, de forma idempotente.'''
     existing = {c['name'] for c in inspect(engine).get_columns('posting')}
     with engine.begin() as conn:
-        if 'published' not in existing:
-            conn.execute(text('ALTER TABLE posting ADD COLUMN published VARCHAR'))
+        for name, sql_type in _ADDED_COLUMNS.items():
+            if name not in existing:
+                conn.execute(text(f'ALTER TABLE posting ADD COLUMN {name} {sql_type}'))
 
 
 class PostingRepository:
@@ -102,6 +113,36 @@ class PostingRepository:
 
             return posting
     
+    def get_postings_by_sha(self, shas: Iterable[str]) -> Dict[str, Posting]:
+        '''Los avisos ya guardados, en una sola consulta.'''
+        shas = list(set(shas))
+        if not shas:
+            return {}
+        with Session(engine) as session:
+            statement = select(Posting).where(Posting.sha.in_(shas))
+            return {p.sha: p for p in session.exec(statement)}
+
+    def update_price(self, sha: str, old_price: Optional[str], new_price: str,
+                     notify_drop: bool) -> bool:
+        '''Actualiza el precio guardado. Con `notify_drop` ademas lo deja
+        pendiente de envio (sent=false) con el precio anterior, y el envio
+        normal manda el aviso de baja.
+
+        Es atomico (WHERE price = old_price): si dos compus detectan la misma
+        baja a la vez, una sola la registra y el mensaje sale una sola vez.
+        '''
+        values = {'price': new_price}
+        if notify_drop:
+            values.update(previous_price=old_price, sent=False)
+        with Session(engine) as session:
+            result = session.execute(
+                update(Posting)
+                .where(Posting.sha == sha, Posting.price == old_price)
+                .values(**values)
+            )
+            session.commit()
+            return result.rowcount == 1
+
     def get_unsent_postings(self) -> List[Posting]:
         with Session(engine) as session:
             statement = select(Posting).where(Posting.sent == False)

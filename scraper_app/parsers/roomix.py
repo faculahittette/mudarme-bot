@@ -6,7 +6,7 @@ from datetime import datetime
 
 from .base import BaseParser
 from scraper_app.publication import relative_label
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class RoomixParser(BaseParser):
@@ -26,7 +26,6 @@ class RoomixParser(BaseParser):
     def extract_data(self) -> Set[Posting]:
         self.page_keys = set()
         postings: Set[Posting] = set()
-        posting_repository = PostingRepository()
 
         for item in self._initial_results():
             slug = _clean(item.get('slug'))
@@ -36,9 +35,6 @@ class RoomixParser(BaseParser):
             self.page_keys.add(href)
 
             sha = self.get_id(href)
-            if posting_repository.get_posting_by_sha(sha):
-                continue
-
             postings.add(Posting(
                 sha=sha,
                 url=href,

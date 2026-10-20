@@ -1,7 +1,7 @@
 from typing import Set
 
 from .base import BaseParser
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import Posting
 
 
 class MercadolibreParser(BaseParser):
@@ -21,7 +21,6 @@ class MercadolibreParser(BaseParser):
         """Extracting data and returning list of objects"""
         postings = set()
         self.page_keys = set()
-        posting_repository = PostingRepository()
 
         for item in self.soup.select(self.item_selector):
             link_container = item.select_one(self.link_regex)
@@ -35,9 +34,6 @@ class MercadolibreParser(BaseParser):
             self.page_keys.add(href)
 
             sha = self.get_id(href)
-            if posting_repository.get_posting_by_sha(sha):
-                continue
-
             postings.add(Posting(
                 sha=sha,
                 url=href,

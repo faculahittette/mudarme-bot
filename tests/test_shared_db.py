@@ -65,3 +65,21 @@ def test_adds_published_column_to_existing_table(tmp_path, monkeypatch):
     db.create_db_and_tables()
     db.create_db_and_tables()  # idempotente
     assert PostingRepository().create_posting(Posting(sha='b', url='https://x/b', published='hoy'))
+
+
+def test_price_drop_marks_pending_once(repo):
+    repo.create_posting(Posting(sha='a', url='https://x/a', price='USD 229.000'))
+    assert repo.claim_for_sending('a')  # ya se habia mandado
+    # Dos compus detectan la misma baja: solo una la registra.
+    assert repo.update_price('a', 'USD 229.000', 'USD 215.000', notify_drop=True) is True
+    assert repo.update_price('a', 'USD 229.000', 'USD 215.000', notify_drop=True) is False
+    [pending] = repo.get_unsent_postings()
+    assert (pending.price, pending.previous_price) == ('USD 215.000', 'USD 229.000')
+
+
+def test_price_rise_does_not_resend(repo):
+    repo.create_posting(Posting(sha='a', url='https://x/a', price='USD 200.000'))
+    assert repo.claim_for_sending('a')
+    assert repo.update_price('a', 'USD 200.000', 'USD 210.000', notify_drop=False)
+    assert repo.get_unsent_postings() == []
+    assert repo.get_postings_by_sha(['a', 'zz'])['a'].price == 'USD 210.000'

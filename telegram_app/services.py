@@ -3,6 +3,7 @@ from html import escape
 import time
 
 from posting_app.database import Posting
+from posting_app.prices import price_drop
 import datetime
 import json
 import os
@@ -26,7 +27,6 @@ class TelegramService:
         '''Formats the object into a Telegram message.'''
         # Escape text parts to avoid HTML injection or invalid markup
         title = escape(posting.title or '')
-        price = escape(posting.price or '')
         location = escape(posting.location or '')
         description = escape(posting.description or '')
 
@@ -34,10 +34,15 @@ class TelegramService:
         # <a> sin texto queda invisible y el mensaje llega "sin link".
         lines = [
             f'<b>{title or "Propiedad en venta"}</b>',
-            f'\U0001F4B0<i>{price}</i>',
+            self._price_line(posting),
             f'\U0001F4CD<i>{location}</i>',
         ]
-        if posting.published:
+        drop_header = self._drop_header(posting)
+        if drop_header:
+            lines.insert(0, drop_header)
+        elif posting.published:
+            # En una baja de precio, "publicado hace X" quedaria viejo: se
+            # calculo cuando el aviso aparecio por primera vez.
             lines.append(f'\U0001F4C5<i>Publicado {escape(posting.published)}</i>')
         msg = '\n'.join(lines) + '\n\n{}\n\n<a href="{}">Ver publicación</a>'.format(
             description,
@@ -46,6 +51,23 @@ class TelegramService:
 
         return msg
     
+    @staticmethod
+    def _drop_header(posting: Posting) -> str:
+        '''"📉 Bajó de precio (-6.1%)" si el aviso viene de una baja; si no, "".'''
+        if not posting.previous_price:
+            return ''
+        pct = price_drop(posting.previous_price, posting.price)
+        suffix = f' (-{pct:g}%)' if pct else ''
+        return f'\U0001F4C9<b>Bajó de precio{suffix}</b>'
+
+    @staticmethod
+    def _price_line(posting: Posting) -> str:
+        price = escape((posting.price or '').strip())
+        if posting.previous_price:
+            before = escape(posting.previous_price.strip())
+            return f'\U0001F4B0<s>{before}</s> → <b>{price}</b>'
+        return f'\U0001F4B0<i>{price}</i>'
+
     def _post_message(self, msg_text: str):
         """Post message and return response or None on exception."""
         api_url = f'https://api.telegram.org/bot{self._bot_token}/sendMessage'
@@ -71,17 +93,18 @@ class TelegramService:
     def format_minimal_message(self, posting: Posting) -> str:
         """Return a short message consisting of link, title, price, location."""
         title = escape((posting.title or '').strip())
-        price = escape((posting.price or '').strip())
         location = escape((posting.location or '').strip())
-        minimal = '<a href="{}"><b>{}</b></a>\n{}<i>{}</i>\n{}<i>{}</i>'.format(
-            escape(posting.url, quote=True),
-            title or 'Ver publicación',
-            u'\U0001F4B0',
-            price,
-            u'\U0001F4CD',
-            location,
-        )
-        return minimal
+        lines = [
+            '<a href="{}"><b>{}</b></a>'.format(
+                escape(posting.url, quote=True), title or 'Ver publicación'
+            ),
+            self._price_line(posting),
+            f'\U0001F4CD<i>{location}</i>',
+        ]
+        drop_header = self._drop_header(posting)
+        if drop_header:
+            lines.insert(0, drop_header)
+        return '\n'.join(lines)
 
     def send_posting_with_fallback(self, posting: Posting) -> bool:
         """Try sending full message; on failure try minimal; log final failure details."""

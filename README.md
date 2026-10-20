@@ -111,6 +111,14 @@ python main.py ./config.yaml
 
 Listo! :tada: Ahora te deberían empezar a llegar mensajes desde tu bot.
 
+### Bajas de precio :chart_with_downwards_trend:
+
+En cada corrida el bot vuelve a ver todos los avisos que siguen en las búsquedas.
+Si uno que ya se había mandado **bajó de precio**, llega un mensaje
+"📉 Bajó de precio (-6%)" con el precio anterior tachado y el nuevo. Las subas
+solo actualizan el precio guardado, sin mensaje. Aunque corran varias compus a
+la vez, cada baja se avisa una sola vez.
+
 ## Correr desde varias compus (base compartida) :busts_in_silhouette:
 
 Por defecto el estado (avisos vistos/enviados) vive en `scrapdep.db`, local a

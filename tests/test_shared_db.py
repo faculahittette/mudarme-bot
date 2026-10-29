@@ -83,3 +83,29 @@ def test_price_rise_does_not_resend(repo):
     assert repo.update_price('a', 'USD 200.000', 'USD 210.000', notify_drop=False)
     assert repo.get_unsent_postings() == []
     assert repo.get_postings_by_sha(['a', 'zz'])['a'].price == 'USD 210.000'
+
+
+class _Scraper:
+    def __init__(self, postings):
+        self._postings = set(postings)
+
+    def get_postings_from_scraper(self):
+        return self._postings
+
+    def add_publication_dates(self, postings):
+        pass
+
+
+def test_service_with_new_and_known_postings_in_same_run(repo):
+    '''Regresion: guardar un aviso nuevo "expiraba" el objeto y despues fallaba
+    con DetachedInstanceError al revisar precios en la misma corrida.'''
+    from posting_app.services import PostingService
+    repo.create_posting(Posting(sha='viejo', url='https://x/viejo', price='USD 200.000'))
+    scraped = [
+        Posting(sha='nuevo', url='https://x/nuevo', price='USD 150.000'),
+        Posting(sha='viejo', url='https://x/viejo', price='USD 190.000'),
+    ]
+    PostingService(scraper_service=_Scraper(scraped), repository=repo).scrap_and_create_postings()
+    stored = repo.get_postings_by_sha(['nuevo', 'viejo'])
+    assert set(stored) == {'nuevo', 'viejo'}
+    assert stored['viejo'].previous_price == 'USD 200.000'

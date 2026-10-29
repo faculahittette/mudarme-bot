@@ -1,3 +1,4 @@
+import time
 from abc import ABC
 from typing import Callable, List, Tuple
 
@@ -35,6 +36,11 @@ class BaseGateway(ABC):
     paginated = True
     first_page = 1
     timeout_seconds = 30
+    #: Intentos por URL. Un timeout o un 5xx suelen ser pasajeros; sin
+    #: reintento, la pagina vacia se toma como "fin de resultados" y se
+    #: pierden las paginas siguientes.
+    attempts = 2
+    retry_wait_seconds = 5
     clients: List[Client] = [CLOUDSCRAPER]
 
     def page_param(self, page: int) -> int:
@@ -52,6 +58,22 @@ class BaseGateway(ABC):
     publication_in_detail_page = False
 
     def make_request(self, url: str, quiet: bool = False) -> str:
+        '''GET con reintentos. Devuelve '' si todos los intentos fallan.'''
+        for attempt in range(1, self.attempts + 1):
+            html = self._request_once(url, quiet)
+            if html:
+                return html
+            if attempt < self.attempts:
+                console.log(f'Reintentando {self._name} en {self.retry_wait_seconds}s...', style='yellow')
+                time.sleep(self.retry_wait_seconds)
+        console.log(
+            f'[bold u]ATENCION[/bold u]: {self._name} no respondio; '
+            'los resultados de esta busqueda pueden estar incompletos.',
+            style='red bold'
+        )
+        return ''
+
+    def _request_once(self, url: str, quiet: bool) -> str:
         '''GET con el primer cliente que responda OK. Devuelve '' si ninguno.'''
         if not quiet:
             console.log(

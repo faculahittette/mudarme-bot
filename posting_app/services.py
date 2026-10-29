@@ -31,11 +31,15 @@ class PostingService:
         known = self._repository.get_postings_by_sha(p.sha for p in postings)
 
         new = [p for p in postings if p.sha not in known]
-        self._save_new(new)
+        seen = [(known[p.sha], p) for p in postings if p.sha in known]
 
-        drops = sum(self._track_price(known[p.sha], p) for p in postings if p.sha in known)
+        # Precios antes de guardar: al guardar, SQLAlchemy "expira" los
+        # objetos nuevos y no se pueden volver a leer fuera de la sesion.
+        drops = sum(self._track_price(stored, scraped) for stored, scraped in seen)
         if drops:
             console.log(f'{drops} avisos bajaron de precio', style='green')
+
+        self._save_new(new)
 
     def _save_new(self, postings: List[Posting]) -> None:
         self._scraper_service.add_publication_dates(postings)

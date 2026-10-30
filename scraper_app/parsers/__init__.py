@@ -7,3 +7,4 @@ from .properati import ProperatiParser
 from .remax import RemaxParser
 from .bna import BnaParser
 from .roomix import RoomixParser
+from .century21 import Century21Parser

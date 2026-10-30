@@ -49,3 +49,14 @@ bna:
   ambientes_min: 3                 # si el aviso no informa ambientes, pasa
   superficie_cubierta_min_m2: 62   # si no informa superficie, pasa
   excluir_reservadas: true
+
+# Century 21: la URL filtra barrios, deptos y PH, apto credito, hasta USD 230.000,
+# 3+ ambientes y 65+ m2 cubiertos. El sitio no filtra por antiguedad ni excluye
+# reservadas: eso se aplica localmente (con el anio de construccion del aviso).
+century21:
+  url: "https://www.century21.com.ar/search?loc=d%7CCaballito%7C%7CCABA~d%7CVilla%20Crespo%7C%7CCABA~d%7CParque%20Chacabuco%7C%7CCABA~d%7CFlores%7C%7CCABA&op=sell&credit=yes&type=departamento,ph&currency=USD&pmax=230000&rooms=3,4,5%2B&bmin=65&sort=newest&page={}"
+  tipos: ["departamento", "ph"]
+  antiguedad_max_anos: 10
+  antiguedad_max_anos_por_tipo: {"ph": 20}
+  ambientes_min: 3
+  superficie_cubierta_min_m2: 65

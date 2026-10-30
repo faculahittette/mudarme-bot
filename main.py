@@ -27,7 +27,7 @@ from scraper_app.filters import (
     PublicadaValidaFilter,
     TiposPermitidosFilter,
 )
-from scraper_app.parsers import BaseParser, BnaParser
+from scraper_app.parsers import BaseParser, BnaParser, Century21Parser
 from telegram_app.services import TelegramService
 from run_log import tee_output_to
 
@@ -37,9 +37,10 @@ console = Console()
 Urls = Optional[Union[str, List[str]]]
 
 
-class BnaConfig(BaseModel):
-    '''BNA +Hogares: la URL filtra barrio y precio; el resto (que la API no
-    permite filtrar) se aplica localmente. Campo en null = no filtra.'''
+class FilteredSearchConfig(BaseModel):
+    '''Busqueda de un sitio cuya URL no permite todos nuestros filtros (BNA,
+    Century 21): la URL filtra lo que puede y el resto se aplica localmente.
+    Campo en null = no filtra.'''
     url: Urls = None
     tipos: List[str] = []
     antiguedad_max_anos: Optional[int] = None
@@ -65,6 +66,10 @@ class BnaConfig(BaseModel):
         return AndFilter(filters)
 
 
+# Nombre historico, lo usan configs y tests.
+BnaConfig = FilteredSearchConfig
+
+
 class Config(BaseModel):
     pages: Optional[int] = 3
     sleep_time: Optional[int] = 5
@@ -81,7 +86,8 @@ class Config(BaseModel):
     properati_full_url: Urls = None
     remax_full_url: Urls = None
     roomix_full_url: Urls = None
-    bna: Optional[BnaConfig] = None
+    bna: Optional[FilteredSearchConfig] = None
+    century21: Optional[FilteredSearchConfig] = None
     # Base compartida (ej. Postgres en Neon) para correr desde varias compus
     # sin repetir envios. Vacio = SQLite local (scrapdep.db).
     database_url: Optional[str] = None
@@ -113,7 +119,32 @@ _SITE_KEYS = {
     'remax': 'remax_full_url',
     'roomix': 'roomix_full_url',
     'bna': 'bna',
+    'century21': 'century21',
 }
+
+# Sitios con filtros locales: el parser recibe el filtro armado desde el config.
+_FILTERED_PARSERS = {
+    'bna': BnaParser,
+    'century21': Century21Parser,
+}
+
+
+Search = Tuple[str, str, Optional[BaseParser]]
+
+
+def build_searches(config: 'Config') -> List[Search]:
+    '''(sitio, url, parser inyectado o None) de cada busqueda configurada.'''
+    searches: List[Search] = []
+    for site, key in _SITE_KEYS.items():
+        value = getattr(config, key)
+        if not value:
+            continue
+        if site in _FILTERED_PARSERS:
+            parser = _FILTERED_PARSERS[site](value.build_filter())
+            searches.extend((site, url, parser) for url in as_url_list(value.url))
+        else:
+            searches.extend((site, url, None) for url in as_url_list(value))
+    return searches
 
 
 def _read_yaml(path: Path) -> dict:
@@ -160,37 +191,25 @@ def main(config_path: str = typer.Argument('config.yaml')):
     create_db_and_tables()
     console.log(f'Database loaded: {database_label()}', style='italic bold green')
 
-    # Cada entrada: (urls del config, sitio, parser inyectado o None).
-    sites: List[Tuple[Urls, str, Optional[BaseParser]]] = [
-        (config.zonaprop_full_url, 'zonaprop', None),
-        (config.argenprop_full_url, 'argenprop', None),
-        (config.mercadolibre_full_url, 'mercadolibre', None),
-        (config.la_voz_full_url, 'la_voz', None),
-        (config.properati_full_url, 'properati', None),
-        (config.remax_full_url, 'remax', None),
-        (config.roomix_full_url, 'roomix', None),
-    ]
-    if config.bna:
-        sites.append((config.bna.url, 'bna', BnaParser(config.bna.build_filter())))
+    searches = build_searches(config)
 
     while(True):
         # SCRAP POSTINGS
-        for urls, site, parser in sites:
-            for url in as_url_list(urls):
-                posting_service = PostingServiceFactory.build(
-                    site=site,
-                    pages=config.pages,
-                    full_url=url,
-                    parser=parser,
+        for site, url, parser in searches:
+            posting_service = PostingServiceFactory.build(
+                site=site,
+                pages=config.pages,
+                full_url=url,
+                parser=parser,
+            )
+            # Un sitio caido o que cambio su HTML no debe frenar al resto.
+            try:
+                posting_service.scrap_and_create_postings()
+            except Exception as ex:  # noqa: BLE001
+                console.log(
+                    f'[bold u]ERROR[/bold u]: fallo {site} ({url[:80]}...): {ex!r}',
+                    style='red'
                 )
-                # Un sitio caido o que cambio su HTML no debe frenar al resto.
-                try:
-                    posting_service.scrap_and_create_postings()
-                except Exception as ex:  # noqa: BLE001
-                    console.log(
-                        f'[bold u]ERROR[/bold u]: fallo {site} ({url[:80]}...): {ex!r}',
-                        style='red'
-                    )
 
         console.log('Postings scrapped', style='italic bold green')
 

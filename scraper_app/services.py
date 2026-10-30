@@ -6,6 +6,7 @@ from .gateways import (
     ArgenpropGateway,
     BaseGateway,
     BnaGateway,
+    Century21Gateway,
     LaVozGateway,
     MercadolibreGateway,
     ProperatiGateway,
@@ -17,6 +18,7 @@ from .parsers import (
     ArgenpropParser,
     BaseParser,
     BnaParser,
+    Century21Parser,
     LaVozParser,
     MercadolibreParser,
     ProperatiParser,
@@ -102,6 +104,7 @@ SITES: Dict[str, Tuple[Type[BaseGateway], Type[BaseParser]]] = {
     'remax': (RemaxGateway, RemaxParser),
     'roomix': (RoomixGateway, RoomixParser),
     'bna': (BnaGateway, BnaParser),
+    'century21': (Century21Gateway, Century21Parser),
 }
 
 

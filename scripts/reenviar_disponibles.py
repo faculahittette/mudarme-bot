@@ -12,30 +12,16 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Iterator, Optional, Tuple
+from typing import Dict, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import posting_app.database as db  # noqa: E402
-from main import _SITE_KEYS, Config, as_url_list, load_config_dict  # noqa: E402
+from main import Config, build_searches, load_config_dict  # noqa: E402
 from posting_app.prices import parse_price  # noqa: E402
-from scraper_app.parsers import BaseParser, BnaParser  # noqa: E402
 from scraper_app.services import ScraperServiceFactory  # noqa: E402
 from telegram_app.services import TelegramService  # noqa: E402
-
-
-def _searches(config: Config) -> Iterator[Tuple[str, str, Optional[BaseParser]]]:
-    '''(sitio, url, parser) de cada busqueda configurada.'''
-    for site, key in _SITE_KEYS.items():
-        if site == 'bna':
-            if config.bna:
-                parser = BnaParser(config.bna.build_filter())
-                for url in as_url_list(config.bna.url):
-                    yield site, url, parser
-            continue
-        for url in as_url_list(getattr(config, key)):
-            yield site, url, None
 
 
 def _usd(posting: db.Posting) -> Optional[int]:
@@ -45,7 +31,7 @@ def _usd(posting: db.Posting) -> Optional[int]:
 
 def scrape_available(config: Config) -> Dict[str, db.Posting]:
     found: Dict[str, db.Posting] = {}
-    for site, url, parser in _searches(config):
+    for site, url, parser in build_searches(config):
         try:
             scraper = ScraperServiceFactory.build(site, config.pages, url, parser)
             postings = scraper.get_postings_from_scraper()

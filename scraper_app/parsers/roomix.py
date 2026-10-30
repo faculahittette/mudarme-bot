@@ -1,10 +1,7 @@
-import json
-import re
-from typing import Any, Dict, List, Optional, Set
-
-from datetime import datetime
+from typing import Any, Dict, Set
 
 from .base import BaseParser
+from .rsc import clean_str as _clean, parse_iso_date, rsc_array
 from scraper_app.publication import relative_label
 from posting_app.database import Posting
 
@@ -17,8 +14,6 @@ class RoomixParser(BaseParser):
     '''
 
     _base_url = 'https://roomix.ai'
-    _RSC_CHUNK = re.compile(r'self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)')
-    _MARKER = '"initialResults":'
 
     def get_soup_object(self, html: str):
         self._raw = html or ''
@@ -27,7 +22,7 @@ class RoomixParser(BaseParser):
         self.page_keys = set()
         postings: Set[Posting] = set()
 
-        for item in self._initial_results():
+        for item in rsc_array(self._raw, 'initialResults'):
             slug = _clean(item.get('slug'))
             if not slug:
                 continue
@@ -42,42 +37,10 @@ class RoomixParser(BaseParser):
                 price=_format_price(item),
                 location=_clean(item.get('location_address')) or _clean(item.get('location_city')) or '',
                 description=_describe(item),
-                published=relative_label(_parse_date(item.get('publication_date'))),
+                published=relative_label(parse_iso_date(item.get('publication_date'))),
             ))
 
         return postings
-
-    def _initial_results(self) -> List[Dict[str, Any]]:
-        rsc = ''.join(self._decode_chunks())
-        start = rsc.find(self._MARKER)
-        if start < 0:
-            return []
-        try:
-            results, _ = json.JSONDecoder().raw_decode(rsc, start + len(self._MARKER))
-        except ValueError:
-            return []
-        return [r for r in results if isinstance(r, dict)] if isinstance(results, list) else []
-
-    def _decode_chunks(self):
-        for match in self._RSC_CHUNK.finditer(self._raw):
-            try:
-                yield json.loads(match.group(1))
-            except ValueError:
-                continue
-
-
-def _parse_date(value: Any) -> Optional[datetime]:
-    try:
-        return datetime.fromisoformat(value) if isinstance(value, str) and value[:4].isdigit() else None
-    except ValueError:
-        return None
-
-
-def _clean(value: Any) -> Optional[str]:
-    '''Los strings que empiezan con `$` son referencias internas de RSC.'''
-    if not isinstance(value, str) or value.startswith('$'):
-        return None
-    return value.strip() or None
 
 
 def _format_price(item: Dict[str, Any]) -> str:

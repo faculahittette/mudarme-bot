@@ -7,3 +7,4 @@ from .properati import ProperatiGateway
 from .remax import RemaxGateway
 from .bna import BnaGateway
 from .roomix import RoomixGateway
+from .century21 import Century21Gateway

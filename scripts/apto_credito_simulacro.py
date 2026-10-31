@@ -1,6 +1,7 @@
 '''Simulacro de "apto credito por descripcion": corre esas busquedas, entra a
 cada aviso sin la marca y muestra que mandaria a Telegram, SIN guardar nada en
-la base ni mandar mensajes. Sirve para revisar falsos positivos antes de
+la base ni mandar mensajes. Usa los mismos topes que la corrida real
+(paginas por sitio y avisos por corrida). Sirve para revisar falsos positivos antes de
 activarlo o despues de tocar las reglas de scraper_app/apto_credito.py.
 
 Solo LEE la base (para saltear los avisos que ya se mandaron) y no crea
@@ -98,9 +99,11 @@ def main() -> None:
     for search in searches:
         print(f'\n=== {search.site}: {search.url[:110]}')
         scraper = _RememberingScraper(ScraperServiceFactory.build(
-            site=search.site, pages=config.pages, full_url=search.url))
+            site=search.site, pages=search.pages or config.pages, full_url=search.url))
         postings, checks = _ReadOnlyPostings(), _NoChecks()
-        AptoCreditoPorDescripcionService(search.site, scraper, postings, checks).scrap_and_create_postings()
+        AptoCreditoPorDescripcionService(
+            search.site, scraper, postings, checks, max_avisos=config.apto_credito_max_avisos,
+        ).scrap_and_create_postings()
         for posting in postings.would_send:
             frase = _FRASE.search(texto_del_aviso(search.site, scraper.pages[posting.url]))
             line = f'MANDARIA | {posting.title[:70]} | {posting.price}\n    "{frase.group(0) if frase else ""}"\n    {posting.url}'

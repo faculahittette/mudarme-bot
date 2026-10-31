@@ -21,6 +21,10 @@ console = Console()
 
 BADGE = '\U0001F50E Apto crédito según la descripción (el aviso no tiene la marca)'
 
+#: Avisos a revisar por busqueda y corrida. La primera puesta al dia se
+#: reparte en varias corridas en vez de pegarle cientos de veces al sitio.
+MAX_AVISOS_POR_CORRIDA = 40
+
 
 class AptoCreditoPorDescripcionService:
     def __init__(
@@ -29,8 +33,10 @@ class AptoCreditoPorDescripcionService:
         scraper_service: ScraperService,
         postings: Optional[PostingRepository] = None,
         checks: Optional[AptoCreditoCheckRepository] = None,
+        max_avisos: int = MAX_AVISOS_POR_CORRIDA,
     ):
         self._site = site
+        self._max_avisos = max_avisos
         self._scraper = scraper_service
         self._postings = postings or PostingRepository()
         self._checks = checks or AptoCreditoCheckRepository()
@@ -41,14 +47,21 @@ class AptoCreditoPorDescripcionService:
         shas = [p.sha for p in postings]
         known = set(self._postings.get_postings_by_sha(shas)) | self._checks.checked_shas(shas)
         pending = [p for p in postings if p.sha not in known]
-        console.log(f'Apto credito por descripcion: {len(pending)} avisos sin revisar')
+        console.log(
+            f'Apto credito por descripcion: {len(pending)} avisos sin revisar'
+            + (f' (reviso {self._max_avisos} en esta corrida)' if len(pending) > self._max_avisos else '')
+        )
 
         resultados = Counter()
-        for posting in pending:
+        complete = self._scraper.complete
+        for posting in pending[:self._max_avisos]:
             html = self._scraper.fetch_detail(posting.url)
             if html is None:
-                resultados['sin respuesta'] += 1  # se reintenta en otra corrida
-                continue
+                # El sitio no respondio (ya con reintentos): casi seguro nos
+                # bloqueo. Cortamos aca; lo pendiente sigue en otra corrida.
+                console.log('El sitio dejo de responder: sigo en la proxima corrida', style='yellow')
+                complete = False
+                break
             texto = texto_del_aviso(self._site, html)
             if not texto:
                 # Pagina sin titulo ni descripcion: anti-robots o el sitio
@@ -63,7 +76,7 @@ class AptoCreditoPorDescripcionService:
 
         if pending:
             console.log(f'Resultado: {dict(resultados)}')
-        return self._scraper.complete
+        return complete
 
     def _save_for_sending(self, posting, html: str) -> None:
         posting.badge = BADGE
@@ -73,13 +86,19 @@ class AptoCreditoPorDescripcionService:
 
 
 class AptoCreditoServiceFactory:
-    @classmethod
+    '''Misma firma de `build` que PostingServiceFactory; el tope se configura
+    al crear la fabrica (viene del config).'''
+
+    def __init__(self, max_avisos: int = MAX_AVISOS_POR_CORRIDA):
+        self._max_avisos = max_avisos
+
     def build(
-        cls,
+        self,
         site: str,
         pages: int,
         full_url: str,
         parser: Optional[BaseParser] = None,
     ) -> AptoCreditoPorDescripcionService:
         scraper = ScraperServiceFactory.build(site=site, pages=pages, full_url=full_url, parser=parser)
-        return AptoCreditoPorDescripcionService(site=site, scraper_service=scraper)
+        return AptoCreditoPorDescripcionService(
+            site=site, scraper_service=scraper, max_avisos=self._max_avisos)

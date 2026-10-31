@@ -75,13 +75,21 @@ century21:
 # Llegan con la etiqueta "Apto credito segun la descripcion". BNA no hace
 # falta: todo lo de +Hogares es apto. Sitios soportados: zonaprop, argenprop,
 # mercadolibre (el texto se lee distinto en cada uno: scraper_app/apto_credito.py).
+# Zonaprop y Argenprop van ordenadas por "mas nuevos" y se leen pocas paginas
+# (apto_credito_paginas): los avisos nuevos estan siempre arriba y asi no nos
+# bloquean. Mercado Libre no ordena por fecha: se leen todas sus paginas.
+# Por corrida se revisan hasta apto_credito_max_avisos avisos por busqueda.
+apto_credito_paginas:
+  zonaprop: 3
+  argenprop: 2
+apto_credito_max_avisos: 40
 apto_credito_por_descripcion:
   zonaprop:
-    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-hasta-10-anos-menos-230000-dolar-pagina-{}.html"
-    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-a-estrenar-menos-230000-dolar-pagina-{}.html"
+    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-hasta-10-anos-menos-230000-dolar-orden-publicado-descendente-pagina-{}.html"
+    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-a-estrenar-menos-230000-dolar-orden-publicado-descendente-pagina-{}.html"
   argenprop:
-    - "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
-    - "https://www.argenprop.com/ph/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
+    - "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000/orden-masnuevos?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
+    - "https://www.argenprop.com/ph/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000/orden-masnuevos?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
   mercadolibre:
     - "https://inmuebles.mercadolibre.com.ar/departamentos/venta/mas-de-3-ambientes/capital-federal/caballito-o-villa-crespo-o-flores-o-parque-chacabuco/_Desde_{}_PriceRange_0USD-230000USD_COVERED*AREA_65m%C2%B2-*_NoIndex_True_PROPERTY*AGE_0a%C3%B1os-10a%C3%B1os"
     - "https://inmuebles.mercadolibre.com.ar/ph/venta/mas-de-3-ambientes/capital-federal/caballito-o-villa-crespo-o-flores-o-parque-chacabuco/_Desde_{}_PriceRange_0USD-230000USD_COVERED*AREA_65m%C2%B2-*_NoIndex_True_PROPERTY*AGE_0a%C3%B1os-15a%C3%B1os"

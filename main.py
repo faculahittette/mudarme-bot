@@ -19,7 +19,7 @@ from posting_app.database import (
     create_db_and_tables,
     database_label,
 )
-from posting_app.apto_credito_service import AptoCreditoServiceFactory
+from posting_app.apto_credito_service import MAX_AVISOS_POR_CORRIDA, AptoCreditoServiceFactory
 from posting_app.services import PostingServiceFactory
 from scraper_app.filters import (
     AndFilter,
@@ -104,6 +104,11 @@ class Config(BaseModel):
     # solo se mandan los avisos cuyo texto dice "apto credito" (ver
     # posting_app/apto_credito_service.py). {sitio: url o lista de urls}.
     apto_credito_por_descripcion: Dict[str, Urls] = {}
+    # Paginas a leer por sitio en esas busquedas (ordenadas por "mas nuevos",
+    # los avisos nuevos siempre estan arriba). Sin valor = `pages`.
+    apto_credito_paginas: Dict[str, int] = {}
+    # Avisos a revisar por busqueda y corrida (cada uno es una visita).
+    apto_credito_max_avisos: int = MAX_AVISOS_POR_CORRIDA
 
     @field_validator('apto_credito_por_descripcion')
     @classmethod
@@ -153,13 +158,17 @@ _FILTERED_PARSERS = {
 }
 
 
-# Tipos de busqueda: cada uno con su servicio (misma interfaz).
+# Tipos de busqueda: cada uno con su servicio (misma interfaz de `build`).
 NORMAL = 'normal'
 APTO_POR_DESCRIPCION = 'apto_por_descripcion'
-_SERVICE_FACTORIES = {
-    NORMAL: PostingServiceFactory,
-    APTO_POR_DESCRIPCION: AptoCreditoServiceFactory,
-}
+
+
+def service_factories(config: Optional['Config'] = None) -> dict:
+    max_avisos = config.apto_credito_max_avisos if config else MAX_AVISOS_POR_CORRIDA
+    return {
+        NORMAL: PostingServiceFactory,
+        APTO_POR_DESCRIPCION: AptoCreditoServiceFactory(max_avisos),
+    }
 
 
 class Search(NamedTuple):
@@ -167,6 +176,7 @@ class Search(NamedTuple):
     url: str
     parser: Optional[BaseParser] = None
     kind: str = NORMAL
+    pages: Optional[int] = None  # None = `pages` del config
 
 
 def build_searches(config: 'Config') -> List[Search]:
@@ -183,8 +193,9 @@ def build_searches(config: 'Config') -> List[Search]:
         else:
             searches.extend(Search(site, url) for url in as_url_list(value))
     for site, urls in config.apto_credito_por_descripcion.items():
+        pages = config.apto_credito_paginas.get(site)
         searches.extend(
-            Search(site, url, kind=APTO_POR_DESCRIPCION) for url in as_url_list(urls)
+            Search(site, url, kind=APTO_POR_DESCRIPCION, pages=pages) for url in as_url_list(urls)
         )
     return searches
 
@@ -215,15 +226,16 @@ def load_config_dict(config_path: Path, searches_path: Path, environ) -> dict:
     return data
 
 
-def run_searches(searches: List[Search], pages: int) -> List[Search]:
+def run_searches(searches: List[Search], pages: int, factories: Optional[dict] = None) -> List[Search]:
     '''Corre cada busqueda y devuelve las que quedaron incompletas.'''
+    factories = factories or service_factories()
     failed: List[Search] = []
     for search in searches:
         site, url, parser = search[0], search[1], search[2]
-        factory = _SERVICE_FACTORIES[getattr(search, 'kind', NORMAL)]
+        factory = factories[getattr(search, 'kind', NORMAL)]
         posting_service = factory.build(
             site=site,
-            pages=pages,
+            pages=getattr(search, 'pages', None) or pages,
             full_url=url,
             parser=parser,
         )
@@ -295,7 +307,8 @@ def scrape_send_and_report(config: 'Config', searches: List[Search]) -> None:
         bot_token=config.bot_token,
         chat_room=config.chat_room,
     )
-    failed = run_searches(searches, config.pages)
+    factories = service_factories(config)
+    failed = run_searches(searches, config.pages, factories)
     console.log('Postings scrapped', style='italic bold green')
     send_unsent_postings(telegram_service)
 
@@ -306,7 +319,7 @@ def scrape_send_and_report(config: 'Config', searches: List[Search]) -> None:
             f'{config.retry_failed_after_seconds}s', style='yellow'
         )
         sleep(config.retry_failed_after_seconds)
-        failed = run_searches(failed, config.pages)
+        failed = run_searches(failed, config.pages, factories)
         send_unsent_postings(telegram_service)
 
     if failed:

@@ -17,7 +17,7 @@ def _setup(monkeypatch, results_per_round, retry_after=300):
     rounds, sleeps = [], []
     telegram = _FakeTelegram()
 
-    def fake_run(searches, pages):
+    def fake_run(searches, pages, factories=None):
         rounds.append([s[0] for s in searches])
         failing = results_per_round[len(rounds) - 1]
         return [s for s in searches if s[0] in failing]

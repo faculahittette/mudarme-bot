@@ -10,7 +10,7 @@ class ArgenpropGateway(BaseGateway):
     # pedido de mas es justo el que suele comerse el 202).
     page_size = 20
     # Ritmo de persona y cookies entre paginas, como un navegador.
-    min_interval_seconds = 4
+    min_interval_seconds = 8
     reuse_session = True
 
     def __init__(self):

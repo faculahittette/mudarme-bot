@@ -122,9 +122,10 @@ def _p(sha):
     return Posting(sha=sha, url=f'https://z/{sha}', title=sha)
 
 
-def _run(postings, pages, known=(), checked=()):
+def _run(postings, pages, known=(), checked=(), max_avisos=40):
     scraper, repo, checks = _Scraper(postings, pages), _Postings(known), _Checks(checked)
-    ok = AptoCreditoPorDescripcionService('zonaprop', scraper, repo, checks).scrap_and_create_postings()
+    service = AptoCreditoPorDescripcionService('zonaprop', scraper, repo, checks, max_avisos=max_avisos)
+    ok = service.scrap_and_create_postings()
     return ok, scraper, repo, checks
 
 
@@ -152,8 +153,22 @@ def test_no_entra_a_avisos_ya_guardados_ni_ya_revisados():
 
 
 def test_si_la_pagina_no_responde_lo_reintenta_en_otra_corrida():
-    _, _, repo, checks = _run([_p('caido')], {})
+    ok, _, repo, checks = _run([_p('caido')], {})
     assert repo.created == [] and checks.saved == {}
+    assert ok is False  # busqueda incompleta: reintento a los 5 min y, si sigue, alerta
+
+
+def test_si_el_sitio_bloquea_corta_en_vez_de_insistir_con_cada_aviso():
+    # Ninguna pagina responde (ej. Argenprop con 202): una sola visita, no 50.
+    ok, scraper, _, checks = _run([_p(str(i)) for i in range(50)], {})
+    assert len(scraper.visited) == 1 and checks.saved == {} and ok is False
+
+
+def test_revisa_como_mucho_max_avisos_por_corrida():
+    postings = [_p(str(i)) for i in range(5)]
+    ok, scraper, _, checks = _run(postings, {p.url: _page('Luminoso') for p in postings}, max_avisos=2)
+    assert len(scraper.visited) == 2 and len(checks.saved) == 2
+    assert ok is True  # el resto sigue en la proxima corrida, no es una falla
 
 
 def test_pagina_sin_texto_no_se_marca_como_revisada():
@@ -174,6 +189,29 @@ def test_build_searches_agrega_las_busquedas_sin_marca_al_final():
         ('argenprop', 'a1', APTO_POR_DESCRIPCION),
         ('argenprop', 'a2', APTO_POR_DESCRIPCION),
     ]
+
+
+def test_paginas_por_sitio_solo_en_las_busquedas_sin_marca():
+    config = Config(bot_token='t', chat_room='c', zonaprop_full_url='z-apto',
+                    apto_credito_por_descripcion={'zonaprop': 'z-todo', 'mercadolibre': 'm'},
+                    apto_credito_paginas={'zonaprop': 3})
+    assert [s.pages for s in build_searches(config)] == [None, 3, None]
+
+
+def test_run_searches_usa_las_paginas_de_cada_busqueda():
+    from main import NORMAL, run_searches
+    pedidas = []
+
+    class _Factory:
+        @staticmethod
+        def build(site, pages, full_url, parser=None):
+            pedidas.append(pages)
+            return type('S', (), {'scrap_and_create_postings': lambda self: True})()
+
+    factories = {NORMAL: _Factory, APTO_POR_DESCRIPCION: _Factory}
+    run_searches([Search('zonaprop', 'a'), Search('zonaprop', 'b', kind=APTO_POR_DESCRIPCION, pages=3)],
+                 30, factories)
+    assert pedidas == [30, 3]
 
 
 def test_sitio_no_soportado_es_error_de_config():

@@ -27,7 +27,7 @@ import posting_app.database as db  # noqa: E402
 from main import APTO_POR_DESCRIPCION, Config, build_searches, load_config_dict  # noqa: E402
 from posting_app.apto_credito_service import AptoCreditoPorDescripcionService  # noqa: E402
 from run_log import tee_output_to  # noqa: E402
-from scraper_app.apto_credito import texto_del_aviso  # noqa: E402
+from scraper_app.apto_credito import Veredicto, clasificar, texto_del_aviso  # noqa: E402
 from scraper_app.services import ScraperServiceFactory  # noqa: E402
 
 _FRASE = re.compile(r'.{0,60}apto\s*(?:a\s+|para\s+)?cr[eé]d.{0,40}', re.IGNORECASE)
@@ -87,6 +87,8 @@ class _RememberingScraper:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--sitio', help='solo este sitio (zonaprop, argenprop, mercadolibre)')
+    parser.add_argument('--mostrar-no', type=int, default=0,
+                        help='muestra por que se descarto como "NO" (de los primeros N avisos)')
     args = parser.parse_args()
 
     tee_output_to(ROOT / 'apto_simulacro.log')
@@ -109,6 +111,12 @@ def main() -> None:
             line = f'MANDARIA | {posting.title[:70]} | {posting.price}\n    "{frase.group(0) if frase else ""}"\n    {posting.url}'
             print(line)
             total.append(line)
+        # Los descartados por "NO", con el texto que lo dispara (para cazar falsos negativos).
+        for url, html in list(scraper.pages.items())[:args.mostrar_no]:
+            texto = texto_del_aviso(search.site, html)
+            if clasificar(texto) is Veredicto.NO:
+                frase = re.search(r'.{0,70}\b(?:no|sin)\b.{0,15}apto.{0,40}|.{0,50}apto\s*cr[eé]d.{0,40}', texto, re.I)
+                print(f'DESCARTA (no) | "{frase.group(0) if frase else texto[:120]}"\n    {url}')
         resumen = {v: list(checks.veredictos.values()).count(v) for v in set(checks.veredictos.values())}
         print(f'--- veredictos: {resumen}')
 

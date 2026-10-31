@@ -1,8 +1,11 @@
 import os
+import platform
 import yaml
+from html import escape
 from pathlib import Path
 from time import sleep
 from typing import Dict, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import typer
 from pydantic import BaseModel
@@ -91,6 +94,10 @@ class Config(BaseModel):
     # Base compartida (ej. Postgres en Neon) para correr desde varias compus
     # sin repetir envios. Vacio = SQLite local (scrapdep.db).
     database_url: Optional[str] = None
+    # Si alguna busqueda falla (sitio caido, anti-bot), se reintenta SOLO esa
+    # despues de estos segundos; si vuelve a fallar, llega un aviso a Telegram.
+    # 0 = no reintentar (avisa directo).
+    retry_failed_after_seconds: int = 300
 
 
 def as_url_list(urls: Urls) -> List[str]:
@@ -171,6 +178,103 @@ def load_config_dict(config_path: Path, searches_path: Path, environ) -> dict:
     return data
 
 
+def run_searches(searches: List[Search], pages: int) -> List[Search]:
+    '''Corre cada busqueda y devuelve las que quedaron incompletas.'''
+    failed: List[Search] = []
+    for search in searches:
+        site, url, parser = search
+        posting_service = PostingServiceFactory.build(
+            site=site,
+            pages=pages,
+            full_url=url,
+            parser=parser,
+        )
+        # Un sitio caido o que cambio su HTML no debe frenar al resto.
+        try:
+            complete = posting_service.scrap_and_create_postings()
+        except Exception as ex:  # noqa: BLE001
+            console.log(
+                f'[bold u]ERROR[/bold u]: fallo {site} ({url[:80]}...): {ex!r}',
+                style='red'
+            )
+            complete = False
+        if not complete:
+            failed.append(search)
+    return failed
+
+
+def send_unsent_postings(telegram_service: TelegramService) -> None:
+    posting_repository = PostingRepository()
+    unsent_postings = posting_repository.get_unsent_postings()
+    console.log(f'About to send [u]{len(unsent_postings)}[/u] postings')
+    for posting in track(unsent_postings, description='Sending postings...'):
+        # Primero lo "reservo" en la base: si otra compu ya lo mando (o lo
+        # esta mandando ahora), lo salteo. Asi no hay duplicados en el grupo.
+        if not posting_repository.claim_for_sending(posting.sha):
+            continue
+        # Try sending with automatic retries and backoff (respects Telegram's retry_after when detected)
+        ok = telegram_service.send_with_retries(posting, max_retries=3, backoff_base=2)
+        if not ok:
+            posting_repository.release_claim(posting.sha)
+            console.log(
+                (
+                    '[bold u]WARNING[/bold u]: '
+                    f'Unable to send {posting.title} after retries. '
+                    'It will be retried later automatically.'
+                ),
+                style='yellow'
+            )
+    console.log('Postings sent', style='italic bold green')
+
+
+def describe_search(search: Search) -> str:
+    '''"argenprop · /ph/venta/caballito-o-flores..." para identificar la busqueda.'''
+    site, url, _ = search
+    path = urlparse(url).path.strip('/')
+    return f'{site} · /{path[:45]}' if path else site
+
+
+def failure_alert(failed: List[Search], retried: bool) -> str:
+    when = 'tambien en el reintento' if retried else 'sin reintento'
+    lines = [f'\u26A0\uFE0F <b>mudarme-bot: busquedas incompletas</b> ({when})']
+    lines += [f'• {escape(describe_search(search))}' for search in failed]
+    lines.append(f'<i>Corrida desde {escape(run_origin())}. Detalle en last_run.log.</i>')
+    return '\n'.join(lines)
+
+
+def run_origin() -> str:
+    return 'GitHub Actions' if os.environ.get('GITHUB_ACTIONS') else platform.node()
+
+
+def scrape_send_and_report(config: 'Config', searches: List[Search]) -> None:
+    '''Una corrida completa. Lo encontrado se manda enseguida; si algo fallo,
+    se reintenta solo eso a los `retry_failed_after_seconds` y, si sigue
+    fallando, se avisa por Telegram (asi "no hubo nada nuevo" y "el sitio no
+    respondio" dejan de verse iguales).'''
+    telegram_service = TelegramService(
+        bot_token=config.bot_token,
+        chat_room=config.chat_room,
+    )
+    failed = run_searches(searches, config.pages)
+    console.log('Postings scrapped', style='italic bold green')
+    send_unsent_postings(telegram_service)
+
+    retried = bool(failed) and config.retry_failed_after_seconds > 0
+    if retried:
+        console.log(
+            f'{len(failed)} busquedas incompletas: reintento en '
+            f'{config.retry_failed_after_seconds}s', style='yellow'
+        )
+        sleep(config.retry_failed_after_seconds)
+        failed = run_searches(failed, config.pages)
+        send_unsent_postings(telegram_service)
+
+    if failed:
+        console.log(f'Aviso por Telegram: {len(failed)} busquedas siguen fallando', style='red')
+        if not telegram_service.send_telegram_message(failure_alert(failed, retried)):
+            console.log('[bold u]WARNING[/bold u]: no se pudo mandar la alerta', style='yellow')
+
+
 def main(config_path: str = typer.Argument('config.yaml')):
     # LOAD CONFIG
     config_dict = load_config_dict(
@@ -194,52 +298,7 @@ def main(config_path: str = typer.Argument('config.yaml')):
     searches = build_searches(config)
 
     while(True):
-        # SCRAP POSTINGS
-        for site, url, parser in searches:
-            posting_service = PostingServiceFactory.build(
-                site=site,
-                pages=config.pages,
-                full_url=url,
-                parser=parser,
-            )
-            # Un sitio caido o que cambio su HTML no debe frenar al resto.
-            try:
-                posting_service.scrap_and_create_postings()
-            except Exception as ex:  # noqa: BLE001
-                console.log(
-                    f'[bold u]ERROR[/bold u]: fallo {site} ({url[:80]}...): {ex!r}',
-                    style='red'
-                )
-
-        console.log('Postings scrapped', style='italic bold green')
-
-        # SEND POSTINGS
-        posting_repository = PostingRepository()
-        unsent_postings = posting_repository.get_unsent_postings()
-
-        telegram_service = TelegramService(
-            bot_token=config.bot_token,
-            chat_room=config.chat_room,
-        )
-        console.log(f'About to send [u]{len(unsent_postings)}[/u] postings')
-        for posting in track(unsent_postings, description='Sending postings...'):
-            # Primero lo "reservo" en la base: si otra compu ya lo mando (o lo
-            # esta mandando ahora), lo salteo. Asi no hay duplicados en el grupo.
-            if not posting_repository.claim_for_sending(posting.sha):
-                continue
-            # Try sending with automatic retries and backoff (respects Telegram's retry_after when detected)
-            ok = telegram_service.send_with_retries(posting, max_retries=3, backoff_base=2)
-            if not ok:
-                posting_repository.release_claim(posting.sha)
-                console.log(
-                    (
-                        '[bold u]WARNING[/bold u]: '
-                        f'Unable to send {posting.title} after retries. '
-                        'It will be retried later automatically.'
-                    ),
-                    style='yellow'
-                )
-        console.log('Postings sent', style='italic bold green')
+        scrape_send_and_report(config, searches)
 
         if not config.persist:
             break

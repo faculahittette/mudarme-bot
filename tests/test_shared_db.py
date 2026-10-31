@@ -86,6 +86,8 @@ def test_price_rise_does_not_resend(repo):
 
 
 class _Scraper:
+    complete = True
+
     def __init__(self, postings):
         self._postings = set(postings)
 

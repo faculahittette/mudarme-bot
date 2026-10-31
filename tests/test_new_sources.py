@@ -5,6 +5,7 @@ import pytest
 from main import BnaConfig
 from scraper_app.parsers.bna import BnaParser
 from scraper_app.parsers.roomix import RoomixParser
+from scraper_app.gateways import SourceUnavailable
 from scraper_app.services import ScraperService
 
 FIXTURES = Path(__file__).parent / 'fixtures'
@@ -130,3 +131,40 @@ def test_stops_when_site_repeats_a_page():
     gw = _Gateway({'u1': 'a,b', 'u2': 'a,b'})
     ScraperService(pages=10, url='u{}', gateway=gw, parser=_KeysParser()).get_postings_from_scraper()
     assert gw.requested == ['u1', 'u2']
+
+
+# ------------------------------------------------- Sitio caido / ultima pagina
+
+class _DownGateway(_Gateway):
+    '''Responde las paginas de `pages` y falla (SourceUnavailable) en el resto.'''
+
+    def make_request(self, url):
+        self.requested.append(url)
+        if url not in self._pages:
+            raise SourceUnavailable(url)
+        return self._pages[url]
+
+
+def test_site_down_marks_search_incomplete_without_losing_what_it_got():
+    gw = _DownGateway({'u1': 'a,b'})
+    svc = ScraperService(pages=10, url='u{}', gateway=gw, parser=_KeysParser())
+    svc.get_postings_from_scraper()
+    assert gw.requested == ['u1', 'u2']
+    assert svc.complete is False
+
+
+def test_complete_search_stays_complete():
+    gw = _Gateway({'u1': 'a,b'})
+    svc = ScraperService(pages=10, url='u{}', gateway=gw, parser=_KeysParser())
+    svc.get_postings_from_scraper()
+    assert svc.complete is True
+
+
+def test_short_page_is_the_last_one_when_page_size_is_known():
+    # Como Argenprop: 20, 20, 9 -> no pide la 4 (que solia dar 202).
+    gw = _DownGateway({'u1': 'a,b', 'u2': 'c'})
+    gw.page_size = 2
+    svc = ScraperService(pages=10, url='u{}', gateway=gw, parser=_KeysParser())
+    svc.get_postings_from_scraper()
+    assert gw.requested == ['u1', 'u2']
+    assert svc.complete is True

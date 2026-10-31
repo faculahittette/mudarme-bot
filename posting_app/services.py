@@ -26,7 +26,8 @@ class PostingService:
         self._scraper_service = scraper_service
         self._repository = repository or PostingRepository()
 
-    def scrap_and_create_postings(self):
+    def scrap_and_create_postings(self) -> bool:
+        '''Devuelve False si el sitio no respondio y la busqueda quedo incompleta.'''
         postings = self._scraper_service.get_postings_from_scraper()
         known = self._repository.get_postings_by_sha(p.sha for p in postings)
 
@@ -40,6 +41,7 @@ class PostingService:
             console.log(f'{drops} avisos bajaron de precio', style='green')
 
         self._save_new(new)
+        return self._scraper_service.complete
 
     def _save_new(self, postings: List[Posting]) -> None:
         self._scraper_service.add_publication_dates(postings)

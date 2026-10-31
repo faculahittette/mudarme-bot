@@ -33,6 +33,8 @@ def test_price_drop_only_when_cheaper_in_same_currency():
 # ---------------------------------------------------------------- Servicio
 
 class _Scraper:
+    complete = True
+
     def __init__(self, postings):
         self._postings = set(postings)
         self.dated = []

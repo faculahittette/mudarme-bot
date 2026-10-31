@@ -1,6 +1,6 @@
 import time
 from abc import ABC
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import cloudscraper
 import requests
@@ -28,6 +28,12 @@ def _plain_session() -> requests.Session:
     return session
 
 
+class SourceUnavailable(Exception):
+    '''El sitio no respondio OK en ninguno de los intentos (caido, timeout,
+    anti-bot). Distinto de "no hay mas resultados": quien llama decide si
+    la busqueda quedo incompleta.'''
+
+
 CLOUDSCRAPER: Client = ('cloudscraper', cloudscraper.create_scraper)
 PLAIN: Client = ('requests', _plain_session)
 
@@ -40,7 +46,13 @@ class BaseGateway(ABC):
     #: reintento, la pagina vacia se toma como "fin de resultados" y se
     #: pierden las paginas siguientes.
     attempts = 2
+    #: Espera antes del primer reintento; se duplica en cada intento siguiente
+    #: (backoff exponencial: 5s, 10s, 20s...).
     retry_wait_seconds = 5
+    #: Avisos por pagina cuando el sitio los fija (ej. `limit=48` en la API).
+    #: Si una pagina trae menos, era la ultima y no se pide la siguiente.
+    #: None = no se sabe (Zonaprop varia) y se corta solo por avisos repetidos.
+    page_size: Optional[int] = None
     clients: List[Client] = [CLOUDSCRAPER]
 
     def page_param(self, page: int) -> int:
@@ -58,20 +70,21 @@ class BaseGateway(ABC):
     publication_in_detail_page = False
 
     def make_request(self, url: str, quiet: bool = False) -> str:
-        '''GET con reintentos. Devuelve '' si todos los intentos fallan.'''
+        '''GET con reintentos y backoff. Lanza SourceUnavailable si fallan todos.'''
         for attempt in range(1, self.attempts + 1):
             html = self._request_once(url, quiet)
             if html:
                 return html
             if attempt < self.attempts:
-                console.log(f'Reintentando {self._name} en {self.retry_wait_seconds}s...', style='yellow')
-                time.sleep(self.retry_wait_seconds)
+                wait = self.retry_wait_seconds * 2 ** (attempt - 1)
+                console.log(f'Reintentando {self._name} en {wait}s...', style='yellow')
+                time.sleep(wait)
         console.log(
             f'[bold u]ATENCION[/bold u]: {self._name} no respondio; '
             'los resultados de esta busqueda pueden estar incompletos.',
             style='red bold'
         )
-        return ''
+        raise SourceUnavailable(f'{self._name} no respondio ({url})')
 
     def _request_once(self, url: str, quiet: bool) -> str:
         '''GET con el primer cliente que responda OK. Devuelve '' si ninguno.'''

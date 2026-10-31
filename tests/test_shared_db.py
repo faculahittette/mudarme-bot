@@ -6,7 +6,7 @@ import pytest
 from sqlmodel import SQLModel
 
 import posting_app.database as db
-from posting_app.database import Posting, PostingRepository
+from posting_app.database import AptoCreditoCheckRepository, Posting, PostingRepository
 
 URLS = ['sqlite:///{tmp}/test.db']
 if os.environ.get('TEST_DATABASE_URL'):
@@ -111,3 +111,30 @@ def test_service_with_new_and_known_postings_in_same_run(repo):
     stored = repo.get_postings_by_sha(['nuevo', 'viejo'])
     assert set(stored) == {'nuevo', 'viejo'}
     assert stored['viejo'].previous_price == 'USD 200.000'
+
+
+def test_apto_credito_checks_are_remembered_and_idempotent(repo):
+    checks = AptoCreditoCheckRepository()
+    checks.save('a', 'https://x/a', 'no')
+    checks.save('a', 'https://x/a', 'no')  # ej: otra compu lo reviso a la vez
+    assert checks.checked_shas(['a', 'b']) == {'a'}
+
+
+def test_badge_is_saved_and_read_back(repo):
+    posting = _posting()
+    posting.badge = 'apto segun descripcion'
+    repo.create_posting(posting)
+    assert repo.get_unsent_postings()[0].badge == 'apto segun descripcion'
+
+
+def test_migration_adds_badge_to_an_old_posting_table(tmp_path, monkeypatch):
+    from sqlalchemy import inspect, text
+    monkeypatch.delenv('DATABASE_URL', raising=False)
+    db.configure_database(f'sqlite:///{tmp_path}/old.db')
+    with db.engine.begin() as conn:  # tabla como estaba antes de este cambio
+        conn.execute(text('CREATE TABLE posting (id INTEGER PRIMARY KEY, sha VARCHAR UNIQUE, '
+                          'url VARCHAR UNIQUE, title VARCHAR, price VARCHAR, location VARCHAR, '
+                          'description VARCHAR, sent BOOLEAN, published VARCHAR, previous_price VARCHAR)'))
+    db.create_db_and_tables()
+    assert 'badge' in {c['name'] for c in inspect(db.engine).get_columns('posting')}
+    assert 'aptocreditocheck' in inspect(db.engine).get_table_names()

@@ -4,11 +4,11 @@ import yaml
 from html import escape
 from pathlib import Path
 from time import sleep
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
 import typer
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import track
@@ -19,6 +19,7 @@ from posting_app.database import (
     create_db_and_tables,
     database_label,
 )
+from posting_app.apto_credito_service import AptoCreditoServiceFactory
 from posting_app.services import PostingServiceFactory
 from scraper_app.filters import (
     AndFilter,
@@ -30,6 +31,7 @@ from scraper_app.filters import (
     PublicadaValidaFilter,
     TiposPermitidosFilter,
 )
+from scraper_app.apto_credito import SELECTORES as SITIOS_APTO_POR_DESCRIPCION
 from scraper_app.parsers import BaseParser, BnaParser, Century21Parser
 from telegram_app.services import TelegramService
 from run_log import tee_output_to
@@ -98,6 +100,21 @@ class Config(BaseModel):
     # despues de estos segundos; si vuelve a fallar, llega un aviso a Telegram.
     # 0 = no reintentar (avisa directo).
     retry_failed_after_seconds: int = 300
+    # Busquedas iguales a las normales pero SIN el filtro de apto credito:
+    # solo se mandan los avisos cuyo texto dice "apto credito" (ver
+    # posting_app/apto_credito_service.py). {sitio: url o lista de urls}.
+    apto_credito_por_descripcion: Dict[str, Urls] = {}
+
+    @field_validator('apto_credito_por_descripcion')
+    @classmethod
+    def _sitios_soportados(cls, value: Dict[str, Urls]) -> Dict[str, Urls]:
+        unknown = set(value) - set(SITIOS_APTO_POR_DESCRIPCION)
+        if unknown:
+            raise ValueError(
+                f'apto_credito_por_descripcion no soporta {sorted(unknown)}; '
+                f'sitios validos: {sorted(SITIOS_APTO_POR_DESCRIPCION)}'
+            )
+        return value
 
 
 def as_url_list(urls: Urls) -> List[str]:
@@ -136,11 +153,25 @@ _FILTERED_PARSERS = {
 }
 
 
-Search = Tuple[str, str, Optional[BaseParser]]
+# Tipos de busqueda: cada uno con su servicio (misma interfaz).
+NORMAL = 'normal'
+APTO_POR_DESCRIPCION = 'apto_por_descripcion'
+_SERVICE_FACTORIES = {
+    NORMAL: PostingServiceFactory,
+    APTO_POR_DESCRIPCION: AptoCreditoServiceFactory,
+}
+
+
+class Search(NamedTuple):
+    site: str
+    url: str
+    parser: Optional[BaseParser] = None
+    kind: str = NORMAL
 
 
 def build_searches(config: 'Config') -> List[Search]:
-    '''(sitio, url, parser inyectado o None) de cada busqueda configurada.'''
+    '''Todas las busquedas configuradas. Las normales van primero: asi los
+    avisos con la marca ya estan guardados cuando corren las "sin marca".'''
     searches: List[Search] = []
     for site, key in _SITE_KEYS.items():
         value = getattr(config, key)
@@ -148,9 +179,13 @@ def build_searches(config: 'Config') -> List[Search]:
             continue
         if site in _FILTERED_PARSERS:
             parser = _FILTERED_PARSERS[site](value.build_filter())
-            searches.extend((site, url, parser) for url in as_url_list(value.url))
+            searches.extend(Search(site, url, parser) for url in as_url_list(value.url))
         else:
-            searches.extend((site, url, None) for url in as_url_list(value))
+            searches.extend(Search(site, url) for url in as_url_list(value))
+    for site, urls in config.apto_credito_por_descripcion.items():
+        searches.extend(
+            Search(site, url, kind=APTO_POR_DESCRIPCION) for url in as_url_list(urls)
+        )
     return searches
 
 
@@ -174,7 +209,9 @@ def load_config_dict(config_path: Path, searches_path: Path, environ) -> dict:
         if environ.get(env_name):
             data[key] = environ[env_name]
     for site in filter(None, (environ.get('SKIP_SITES') or '').split(',')):
-        data.pop(_SITE_KEYS.get(site.strip().lower(), ''), None)
+        site = site.strip().lower()
+        data.pop(_SITE_KEYS.get(site, ''), None)
+        (data.get('apto_credito_por_descripcion') or {}).pop(site, None)
     return data
 
 
@@ -182,8 +219,9 @@ def run_searches(searches: List[Search], pages: int) -> List[Search]:
     '''Corre cada busqueda y devuelve las que quedaron incompletas.'''
     failed: List[Search] = []
     for search in searches:
-        site, url, parser = search
-        posting_service = PostingServiceFactory.build(
+        site, url, parser = search[0], search[1], search[2]
+        factory = _SERVICE_FACTORIES[getattr(search, 'kind', NORMAL)]
+        posting_service = factory.build(
             site=site,
             pages=pages,
             full_url=url,
@@ -229,7 +267,9 @@ def send_unsent_postings(telegram_service: TelegramService) -> None:
 
 def describe_search(search: Search) -> str:
     '''"argenprop · /ph/venta/caballito-o-flores..." para identificar la busqueda.'''
-    site, url, _ = search
+    site, url = search[0], search[1]
+    if getattr(search, 'kind', NORMAL) == APTO_POR_DESCRIPCION:
+        site = f'{site} (sin marca apto credito)'
     path = urlparse(url).path.strip('/')
     return f'{site} · /{path[:45]}' if path else site
 

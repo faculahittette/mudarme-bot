@@ -44,6 +44,7 @@ class TelegramService:
             # En una baja de precio, "publicado hace X" quedaria viejo: se
             # calculo cuando el aviso aparecio por primera vez.
             lines.append(f'\U0001F4C5<i>Publicado {escape(posting.published)}</i>')
+        lines[1:1] = self._badge_lines(posting)
         msg = '\n'.join(lines) + '\n\n{}\n\n<a href="{}">Ver publicación</a>'.format(
             description,
             escape(posting.url, quote=True),
@@ -59,6 +60,12 @@ class TelegramService:
         pct = price_drop(posting.previous_price, posting.price)
         suffix = f' (-{pct:g}%)' if pct else ''
         return f'\U0001F4C9<b>Bajó de precio{suffix}</b>'
+
+    @staticmethod
+    def _badge_lines(posting: Posting) -> list:
+        '''La etiqueta destacada, justo debajo del titulo (o nada).'''
+        badge = getattr(posting, 'badge', None)
+        return [f'<b>{escape(badge)}</b>'] if badge else []
 
     @staticmethod
     def _price_line(posting: Posting) -> str:
@@ -101,6 +108,7 @@ class TelegramService:
             self._price_line(posting),
             f'\U0001F4CD<i>{location}</i>',
         ]
+        lines[1:1] = self._badge_lines(posting)
         drop_header = self._drop_header(posting)
         if drop_header:
             lines.insert(0, drop_header)

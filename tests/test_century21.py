@@ -91,5 +91,5 @@ def test_build_searches_injects_filtered_parser():
     config = Config(bot_token='t', chat_room='c', zonaprop_full_url=['z1', 'z2'],
                     century21={'url': 'c21?page={}', 'antiguedad_max_anos': 10})
     searches = build_searches(config)
-    assert [(s, u) for s, u, _ in searches] == [('zonaprop', 'z1'), ('zonaprop', 'z2'), ('century21', 'c21?page={}')]
-    assert isinstance(searches[-1][2], Century21Parser)
+    assert [(s.site, s.url) for s in searches] == [('zonaprop', 'z1'), ('zonaprop', 'z2'), ('century21', 'c21?page={}')]
+    assert isinstance(searches[-1].parser, Century21Parser)

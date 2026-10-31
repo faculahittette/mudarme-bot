@@ -67,3 +67,21 @@ century21:
   antiguedad_max_anos_por_tipo: {"ph": 15}
   ambientes_min: 3
   superficie_cubierta_min_m2: 65
+
+# Avisos SIN la marca de apto credito que lo dicen en el titulo o la descripcion.
+# Mismas busquedas que arriba pero sin ese filtro. El bot entra SOLO a los
+# avisos que nunca vio, lee el texto y manda unicamente los que dicen "apto
+# credito" sin negarlo ("no apto credito", "apto credito: no" se descartan).
+# Llegan con la etiqueta "Apto credito segun la descripcion". BNA no hace
+# falta: todo lo de +Hogares es apto. Sitios soportados: zonaprop, argenprop,
+# mercadolibre (el texto se lee distinto en cada uno: scraper_app/apto_credito.py).
+apto_credito_por_descripcion:
+  zonaprop:
+    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-hasta-10-anos-menos-230000-dolar-pagina-{}.html"
+    - "https://www.zonaprop.com.ar/departamentos-ph-venta-caballito-villa-crespo-parque-chacabuco-flores-mas-de-3-ambientes-mas-65-m2-cubiertos-a-estrenar-menos-230000-dolar-pagina-{}.html"
+  argenprop:
+    - "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
+    - "https://www.argenprop.com/ph/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
+  mercadolibre:
+    - "https://inmuebles.mercadolibre.com.ar/departamentos/venta/mas-de-3-ambientes/capital-federal/caballito-o-villa-crespo-o-flores-o-parque-chacabuco/_Desde_{}_PriceRange_0USD-230000USD_COVERED*AREA_65m%C2%B2-*_NoIndex_True_PROPERTY*AGE_0a%C3%B1os-10a%C3%B1os"
+    - "https://inmuebles.mercadolibre.com.ar/ph/venta/mas-de-3-ambientes/capital-federal/caballito-o-villa-crespo-o-flores-o-parque-chacabuco/_Desde_{}_PriceRange_0USD-230000USD_COVERED*AREA_65m%C2%B2-*_NoIndex_True_PROPERTY*AGE_0a%C3%B1os-15a%C3%B1os"

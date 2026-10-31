@@ -23,9 +23,11 @@ zonaprop_full_url:
 
 # Argenprop: deptos y PH van en URLs separadas porque "departamentos-o-ph"
 # descarta el filtro de m2. Argenprop solo ofrece hasta 10 o 20 anos: PH en 10.
+# Formato canonico del sitio (el viejo `?con-aptocredito&...&pagina-N` redirige).
+# `{}` va pegado al final: el bot pone nada en la pagina 1 y `&pagina-N` despues.
 argenprop_full_url:
-  - "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?con-aptocredito&desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos&pagina-{}"
-  - "https://www.argenprop.com/ph/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000?con-aptocredito&desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos&pagina-{}"
+  - "https://www.argenprop.com/departamentos/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000/apto-credito?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
+  - "https://www.argenprop.com/ph/venta/caballito-o-flores-o-parque-chacabuco-o-villa-crespo/3-ambientes-o-4-ambientes/dolares-hasta-230000/apto-credito?desde-65-m2-cubiertos&estadodeobra-terminado&hasta-10-anos{}"
 
 # Mercado Libre: deptos (0 a 10 anos) y PH (0 a 15 anos), apto credito, 3+ amb,
 # 65+ m2 cubiertos, hasta USD 230.000. `_Desde_{}` es el offset de pagina (1, 49, 97...): lo arma el bot.

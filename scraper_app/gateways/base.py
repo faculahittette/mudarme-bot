@@ -1,6 +1,6 @@
 import time
 from abc import ABC
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import cloudscraper
 import requests
@@ -34,6 +34,13 @@ class SourceUnavailable(Exception):
     la busqueda quedo incompleta.'''
 
 
+# Estado compartido por sitio (clase de gateway), porque cada busqueda crea su
+# propio gateway: dos busquedas de Argenprop deben respetar el mismo ritmo y
+# usar la misma sesion.
+_last_request_at: Dict[type, float] = {}
+_sessions: Dict[Tuple[type, str], requests.Session] = {}
+
+
 CLOUDSCRAPER: Client = ('cloudscraper', cloudscraper.create_scraper)
 PLAIN: Client = ('requests', _plain_session)
 
@@ -53,6 +60,12 @@ class BaseGateway(ABC):
     #: Si una pagina trae menos, era la ultima y no se pide la siguiente.
     #: None = no se sabe (Zonaprop varia) y se corta solo por avisos repetidos.
     page_size: Optional[int] = None
+    #: Pausa minima entre pedidos al mismo sitio (0 = sin pausa). Pedir muy
+    #: seguido es lo que dispara las pantallas anti-robots.
+    min_interval_seconds: float = 0
+    #: True = reusar la sesion (cookies) entre pedidos al sitio, como un
+    #: navegador. False = sesion nueva en cada pedido.
+    reuse_session = False
     clients: List[Client] = [CLOUDSCRAPER]
 
     def page_param(self, page: int) -> int:
@@ -72,6 +85,7 @@ class BaseGateway(ABC):
     def make_request(self, url: str, quiet: bool = False) -> str:
         '''GET con reintentos y backoff. Lanza SourceUnavailable si fallan todos.'''
         for attempt in range(1, self.attempts + 1):
+            self._wait_turn()
             html = self._request_once(url, quiet)
             if html:
                 return html
@@ -86,6 +100,22 @@ class BaseGateway(ABC):
         )
         raise SourceUnavailable(f'{self._name} no respondio ({url})')
 
+    def _wait_turn(self) -> None:
+        site = type(self)
+        if self.min_interval_seconds > 0 and site in _last_request_at:
+            wait = self.min_interval_seconds - (time.monotonic() - _last_request_at[site])
+            if wait > 0:
+                time.sleep(wait)
+        _last_request_at[site] = time.monotonic()
+
+    def _session(self, client_name: str, make_session: Callable[[], requests.Session]) -> requests.Session:
+        if not self.reuse_session:
+            return make_session()
+        key = (type(self), client_name)
+        if key not in _sessions:
+            _sessions[key] = make_session()
+        return _sessions[key]
+
     def _request_once(self, url: str, quiet: bool) -> str:
         '''GET con el primer cliente que responda OK. Devuelve '' si ninguno.'''
         if not quiet:
@@ -94,7 +124,9 @@ class BaseGateway(ABC):
             )
         for client_name, make_session in self.clients:
             try:
-                res = make_session().get(url, timeout=self.timeout_seconds)
+                res = self._session(client_name, make_session).get(
+                    url, timeout=self.timeout_seconds
+                )
             except Exception as e:  # noqa: BLE001 - red/anti-bot: logueamos y seguimos
                 console.log(
                     f'[bold u]ERROR[/bold u]: {self._name} ({client_name}) fallo el request: {e}',

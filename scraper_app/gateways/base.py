@@ -88,7 +88,9 @@ class BaseGateway(ABC):
                     style='red'
                 )
                 continue
-            if res.ok:
+            # Solo 200: Argenprop, por ejemplo, responde 202 con una pantalla
+            # anti-robots ("JavaScript is disabled") que parece una pagina vacia.
+            if res.status_code == 200:
                 if not quiet:
                     console.log(f'{self._name} responded OK!', style='green')
                 return res.text

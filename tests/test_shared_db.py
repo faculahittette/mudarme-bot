@@ -138,3 +138,27 @@ def test_migration_adds_badge_to_an_old_posting_table(tmp_path, monkeypatch):
     db.create_db_and_tables()
     assert 'badge' in {c['name'] for c in inspect(db.engine).get_columns('posting')}
     assert 'aptocreditocheck' in inspect(db.engine).get_table_names()
+
+
+def test_apto_service_with_real_db_saves_and_remembers(repo):
+    # Regresion: al guardar el aviso SQLAlchemy lo expira (DetachedInstanceError).
+    from posting_app.apto_credito_service import AptoCreditoPorDescripcionService
+
+    page = '<h1>T</h1><div id="reactDescription">{}</div>'
+    pages = {'https://x/si1': page.format('Apto crédito'), 'https://x/si2': page.format('APTO CREDITO'),
+             'https://x/no': page.format('No apto crédito')}
+
+    class _Scraper:
+        complete, publication_in_detail_page = True, False
+
+        def get_postings_from_scraper(self):
+            return {_posting('si1'), _posting('si2'), _posting('no')}
+
+        def fetch_detail(self, url):
+            return pages[url]
+
+    checks = AptoCreditoCheckRepository()
+    service = AptoCreditoPorDescripcionService('zonaprop', _Scraper(), repo, checks)
+    assert service.scrap_and_create_postings() is True
+    assert sorted(p.sha for p in repo.get_unsent_postings()) == ['si1', 'si2']
+    assert checks.checked_shas(['si1', 'si2', 'no']) == {'si1', 'si2', 'no'}

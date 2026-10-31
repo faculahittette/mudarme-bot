@@ -55,7 +55,10 @@ class AptoCreditoPorDescripcionService:
         resultados = Counter()
         complete = self._scraper.complete
         for posting in pending[:self._max_avisos]:
-            html = self._scraper.fetch_detail(posting.url)
+            # Leer antes de guardar: al guardar, SQLAlchemy expira el objeto
+            # y despues no se puede leer fuera de la sesion.
+            sha, url = posting.sha, posting.url
+            html = self._scraper.fetch_detail(url)
             if html is None:
                 # El sitio no respondio (ya con reintentos): casi seguro nos
                 # bloqueo. Cortamos aca; lo pendiente sigue en otra corrida.
@@ -72,7 +75,7 @@ class AptoCreditoPorDescripcionService:
             resultados[veredicto.value] += 1
             if veredicto is Veredicto.SI:
                 self._save_for_sending(posting, html)
-            self._checks.save(posting.sha, posting.url, veredicto.value)
+            self._checks.save(sha, url, veredicto.value)
 
         if pending:
             console.log(f'Resultado: {dict(resultados)}')

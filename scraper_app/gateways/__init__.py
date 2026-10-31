@@ -1,4 +1,4 @@
-from .base import BaseGateway
+from .base import BaseGateway, SourceUnavailable
 from .zonaprop import ZonapropGateway
 from .argenprop import ArgenpropGateway
 from .mercadolibre import MercadolibreGateway

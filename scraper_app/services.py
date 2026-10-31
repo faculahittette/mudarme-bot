@@ -12,6 +12,7 @@ from .gateways import (
     ProperatiGateway,
     RemaxGateway,
     RoomixGateway,
+    SourceUnavailable,
     ZonapropGateway,
 )
 from .parsers import (
@@ -44,6 +45,9 @@ class ScraperService:
         self._url = url
         self._gateway = gateway
         self._parser = parser
+        #: False si el sitio dejo de responder a mitad de la busqueda: lo que
+        #: se trajo sirve, pero puede faltar algo (ver main: reintento + alerta).
+        self.complete = True
 
     def get_postings_from_scraper(self) -> Set[Posting]:
         postings = set()
@@ -60,9 +64,12 @@ class ScraperService:
             # Algunos sitios (ej: Mercado Libre) paginan por offset de item, no
             # por numero de pagina. El gateway traduce el indice al valor real.
             page_param = getattr(self._gateway, 'page_param', lambda p: p)(page)
-            html = self._gateway.make_request(
-                url=self._url.format(page_param)
-            )
+            try:
+                html = self._gateway.make_request(url=self._url.format(page_param))
+            except SourceUnavailable:
+                # No es "fin de resultados": la busqueda queda incompleta.
+                self.complete = False
+                break
 
             self._parser.get_soup_object(html=html)
             new_postings = self._parser.extract_data()
@@ -76,8 +83,15 @@ class ScraperService:
                     console.log('No hay avisos nuevos en esta pagina: fin de resultados')
                     break
                 seen_keys |= page_keys
+                if self._is_last_page(page_keys):
+                    console.log('Pagina incompleta: era la ultima')
+                    break
 
         return postings
+
+    def _is_last_page(self, page_keys: Set[str]) -> bool:
+        page_size = getattr(self._gateway, 'page_size', None)
+        return bool(page_size) and len(page_keys) < page_size
 
     def add_publication_dates(self, postings: Iterable[Posting]) -> None:
         '''Para sitios que solo muestran la antiguedad en la pagina del aviso
@@ -89,7 +103,10 @@ class ScraperService:
         if pending:
             console.log(f'Buscando fecha de publicacion de {len(pending)} avisos nuevos')
         for posting in pending:
-            html = self._gateway.make_request(url=posting.url, quiet=True)
+            try:
+                html = self._gateway.make_request(url=posting.url, quiet=True)
+            except SourceUnavailable:
+                continue  # dato opcional: el aviso se manda igual, sin fecha
             posting.published = label_from_html(html)
 
 

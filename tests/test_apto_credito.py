@@ -63,19 +63,30 @@ def test_zonaprop_lee_titulo_y_descripcion_pero_no_avisos_similares():
     html = '''<h1>Depto 3 amb Caballito</h1>
       <div id="reactDescription">Luminoso. Apto crédito.</div>
       <div class="similares">Otro depto NO apto crédito</div>'''
-    assert texto_del_aviso('zonaprop', html) == 'Depto 3 amb Caballito Luminoso. Apto crédito.'
+    assert texto_del_aviso('zonaprop', html) == 'Depto 3 amb Caballito | Luminoso. Apto crédito.'
 
 
-def test_argenprop_lee_caracteristicas():
-    html = '''<h1>Venta depto</h1><div class="section-description--content">Lindo</div>
-      <ul class="property-features"><li>Cant. Ambientes: 3</li><li>Apto Crédito</li></ul>'''
+def test_argenprop_lee_la_descripcion():
+    html = '''<h1>Venta depto</h1><div class="section-description--content">Escritura inmediata. APTO CREDITO</div>
+      <ul class="property-features"><li>Cant. Ambientes: 3</li></ul>'''
     assert clasificar(texto_del_aviso('argenprop', html)) is Veredicto.SI
 
 
-def test_mercadolibre_lee_la_tabla_de_caracteristicas():
-    html = '''<h1>Depto Flores</h1><p class="ui-pdp-description__content">Muy lindo</p>
-      <table><tr><th>Apto crédito</th><td>No</td></tr></table>'''
-    assert clasificar(texto_del_aviso('mercadolibre', html)) is Veredicto.NO
+def test_ignora_la_ficha_tecnica_porque_es_la_misma_marca_del_sitio():
+    # Mercado Libre le manda al bot la ficha con "Apto credito: No" (= sin la
+    # marca). Lo que cuenta es lo que escribio quien publica.
+    html = '''<h1>Depto 3 amb a estrenar APTO CRÉDITO</h1>
+      <p class="ui-pdp-description__content">Muy lindo</p>
+      <table><tr><th>Admite mascotas</th><td>No</td></tr><tr><th>Apto crédito</th><td>No</td></tr></table>'''
+    assert clasificar(texto_del_aviso('mercadolibre', html)) is Veredicto.SI
+    sin_texto = html.replace('APTO CRÉDITO', '')
+    assert clasificar(texto_del_aviso('mercadolibre', sin_texto)) is Veredicto.DESCONOCIDO
+
+
+def test_los_bloques_no_se_pegan_entre_si():
+    html = '''<h1>Depto Flores, admite mascotas: no</h1>
+      <p class="ui-pdp-description__content">Apto crédito hipotecario.</p>'''
+    assert clasificar(texto_del_aviso('mercadolibre', html)) is Veredicto.SI
 
 
 # ------------------------------------------------------------- Servicio

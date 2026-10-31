@@ -50,23 +50,31 @@ def clasificar(texto: str) -> Veredicto:
     return Veredicto.DESCONOCIDO
 
 
-# Partes de la pagina del aviso que hablan de ESA propiedad (nada de avisos
-# similares, menus ni filtros, que tambien dicen "apto credito").
+# Partes de la pagina del aviso que escribio QUIEN PUBLICA (titulo y
+# descripcion). Se ignoran a proposito:
+#   - la ficha tecnica / caracteristicas ("Apto credito: No" en Mercado
+#     Libre, "Apto Credito" en Argenprop): es la misma marca del sitio que
+#     estas busquedas ya sabemos que no esta tildada;
+#   - avisos similares, menus y filtros, que tambien dicen "apto credito".
 SELECTORES: Dict[str, Tuple[str, ...]] = {
     'zonaprop': ('h1', '#reactDescription'),
-    'argenprop': ('h1', '.section-description--content', 'ul.property-features'),
-    'mercadolibre': ('h1', '.ui-pdp-description__content', 'tr'),
+    'argenprop': ('h1', '.section-description--content'),
+    'mercadolibre': ('h1', '.ui-pdp-description__content'),
 }
+
+# Separa bloques distintos (titulo / descripcion) para que el final de uno no
+# se lea pegado al principio del otro ("... mascotas No" + "Apto credito ...").
+_SEPARADOR = ' | '
 
 
 def texto_del_aviso(site: str, html: str) -> str:
     soup = BeautifulSoup(html or '', 'html.parser')
     partes = [
-        el.get_text(' ')
+        ' '.join(el.get_text(' ').split())
         for selector in SELECTORES[site]
         for el in soup.select(selector)
     ]
-    return ' '.join(' '.join(partes).split())
+    return _SEPARADOR.join(p for p in partes if p)
 
 
 def veredicto_del_aviso(site: str, html: str) -> Veredicto:

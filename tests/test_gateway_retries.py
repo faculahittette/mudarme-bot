@@ -56,3 +56,49 @@ def test_anti_bot_202_counts_as_failure():
 def test_slow_or_blocking_sites_get_more_patience():
     assert ArgenpropGateway.attempts == 3 and ArgenpropGateway.retry_wait_seconds == 10
     assert BnaGateway.timeout_seconds == 60
+
+
+# ------------------------------------------- Ritmo y sesion (anti-robots)
+
+def test_argenprop_pages_use_canonical_suffix():
+    gw = ArgenpropGateway()
+    url = 'https://www.argenprop.com/ph/venta/x/apto-credito?desde-65-m2-cubiertos{}'
+    assert [url.format(gw.page_param(p)) for p in (1, 2)] == [
+        'https://www.argenprop.com/ph/venta/x/apto-credito?desde-65-m2-cubiertos',
+        'https://www.argenprop.com/ph/venta/x/apto-credito?desde-65-m2-cubiertos&pagina-2',
+    ]
+
+
+def test_min_interval_is_shared_between_searches_of_the_same_site(monkeypatch):
+    import scraper_app.gateways.base as base
+    clock = iter([100.0, 101.0, 101.0])
+    waits = []
+    monkeypatch.setattr(base.time, 'monotonic', lambda: next(clock))
+    monkeypatch.setattr(base.time, 'sleep', waits.append)
+    monkeypatch.setattr(base, '_last_request_at', {})
+
+    class _Paced(_Flaky):
+        min_interval_seconds = 4
+
+    _Paced(['ok']).make_request('u1')   # primera: no espera
+    _Paced(['ok']).make_request('u2')   # otra busqueda, mismo sitio, 1s despues
+    assert waits == [3.0]
+
+
+def test_reuse_session_keeps_one_session_per_site(monkeypatch):
+    import scraper_app.gateways.base as base
+    monkeypatch.setattr(base, '_sessions', {})
+    created = []
+
+    def factory():
+        created.append(1)
+        return type('S', (), {'get': lambda self, url, timeout: _Response(200, 'ok')})()
+
+    class _Reuse(BaseGateway):
+        _name = 'Reuse'
+        reuse_session = True
+        clients = [('fake', factory)]
+
+    _Reuse().make_request('a')
+    _Reuse().make_request('b')
+    assert len(created) == 1

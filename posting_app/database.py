@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Iterable, List, Optional
+from datetime import datetime, timezone
+from typing import Dict, Iterable, List, Optional, Set
 
 from sqlalchemy import inspect, text, update
 from sqlalchemy.exc import IntegrityError
@@ -32,6 +33,9 @@ class Posting(SQLModel, table=True):
     # Precio anterior cuando el aviso bajo de precio (para el mensaje
     # "Bajo de precio"). None = aviso nuevo, sin cambios de precio.
     previous_price: Optional[str] = None
+    # Linea extra destacada en el mensaje (ej. "apto credito segun la
+    # descripcion"). None = aviso comun.
+    badge: Optional[str] = None
 
     def __key(self):
         return (self.id, self.sha)
@@ -43,6 +47,15 @@ class Posting(SQLModel, table=True):
         if isinstance(other, Posting):
             return self.__key() == other.__key()
         return NotImplemented
+
+
+class AptoCreditoCheck(SQLModel, table=True):
+    '''Avisos sin la marca de apto credito cuyo texto ya se leyo, para no
+    volver a entrar a cada uno en todas las corridas.'''
+    sha: str = Field(primary_key=True)
+    url: str
+    veredicto: str
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 DEFAULT_DATABASE_URL = 'sqlite:///scrapdep.db'
@@ -80,6 +93,7 @@ def create_db_and_tables():
 _ADDED_COLUMNS = {
     'published': 'VARCHAR',
     'previous_price': 'VARCHAR',
+    'badge': 'VARCHAR',
 }
 
 
@@ -181,3 +195,22 @@ class PostingRepository:
             posting.sent = True
             session.add(posting)
             session.commit()
+
+
+class AptoCreditoCheckRepository:
+    def checked_shas(self, shas: Iterable[str]) -> Set[str]:
+        shas = list(set(shas))
+        if not shas:
+            return set()
+        with Session(engine) as session:
+            statement = select(AptoCreditoCheck.sha).where(AptoCreditoCheck.sha.in_(shas))
+            return set(session.exec(statement))
+
+    def save(self, sha: str, url: str, veredicto: str) -> None:
+        '''Idempotente: si otra compu ya lo reviso, no hace nada.'''
+        with Session(engine) as session:
+            session.add(AptoCreditoCheck(sha=sha, url=url, veredicto=veredicto))
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()

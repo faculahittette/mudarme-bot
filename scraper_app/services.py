@@ -97,17 +97,26 @@ class ScraperService:
         '''Para sitios que solo muestran la antiguedad en la pagina del aviso
         (Zonaprop, Mercado Libre): una visita extra por aviso. Se llama solo
         con los avisos NUEVOS, para no visitar todo el listado en cada corrida.'''
-        if not getattr(self._gateway, 'publication_in_detail_page', False):
+        if not self.publication_in_detail_page:
             return
         pending = [p for p in postings if not p.published]
         if pending:
             console.log(f'Buscando fecha de publicacion de {len(pending)} avisos nuevos')
         for posting in pending:
-            try:
-                html = self._gateway.make_request(url=posting.url, quiet=True)
-            except SourceUnavailable:
-                continue  # dato opcional: el aviso se manda igual, sin fecha
-            posting.published = label_from_html(html)
+            html = self.fetch_detail(posting.url)
+            if html is not None:  # dato opcional: sin fecha, el aviso se manda igual
+                posting.published = label_from_html(html)
+
+    @property
+    def publication_in_detail_page(self) -> bool:
+        return getattr(self._gateway, 'publication_in_detail_page', False)
+
+    def fetch_detail(self, url: str) -> Optional[str]:
+        '''HTML de la pagina de un aviso, o None si el sitio no respondio.'''
+        try:
+            return self._gateway.make_request(url=url, quiet=True)
+        except SourceUnavailable:
+            return None
 
 
 # Registro sitio -> (gateway, parser por defecto). Agregar un sitio nuevo es

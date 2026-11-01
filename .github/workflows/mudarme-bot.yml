@@ -3,10 +3,11 @@ name: mudarme-bot
 on:
   # Boton "Run workflow" (web o app de GitHub en el celu).
   workflow_dispatch:
-  # Automatico 2 veces por dia. Cron en UTC: 15:07 y 23:07 UTC = 12:07 y 20:07
-  # en Argentina. GitHub puede demorar unos minutos los cron.
+  # Automatico 4 veces por dia: 9, 12, 16 y 20 hs de Argentina (UTC-3), a los
+  # :07 porque GitHub demora los cron en punto. Cron en UTC: 12, 15, 19 y 23.
+  # GitHub puede demorar unos minutos los cron.
   schedule:
-    - cron: "7 15,23 * * *"
+    - cron: "7 12,15,19,23 * * *"
 
 # Nunca dos corridas a la vez (igual la base evita duplicados, esto ahorra trabajo).
 concurrency:

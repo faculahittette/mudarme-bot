@@ -1,13 +1,14 @@
 '''Avisos SIN la marca "apto credito" del sitio que lo dicen en su texto.
 
 Corre sobre busquedas iguales a las normales pero sin el filtro de apto
-credito. Solo entra a la pagina de los avisos que nunca vio (ni como aviso
+credito. Si el listado ya trae la descripcion (Argenprop) la lee de ahi;
+si no, solo entra a la pagina de los avisos que nunca vio (ni como aviso
 guardado ni como ya revisado) y guarda para enviar unicamente los que dicen
 apto credito sin negarlo.
 '''
 
 from collections import Counter
-from typing import Optional
+from typing import Optional, Tuple
 
 from rich.console import Console
 
@@ -58,14 +59,13 @@ class AptoCreditoPorDescripcionService:
             # Leer antes de guardar: al guardar, SQLAlchemy expira el objeto
             # y despues no se puede leer fuera de la sesion.
             sha, url = posting.sha, posting.url
-            html = self._scraper.fetch_detail(url)
-            if html is None:
+            texto, html = self._texto(posting)
+            if texto is None:
                 # El sitio no respondio (ya con reintentos): casi seguro nos
                 # bloqueo. Cortamos aca; lo pendiente sigue en otra corrida.
                 console.log('El sitio dejo de responder: sigo en la proxima corrida', style='yellow')
                 complete = False
                 break
-            texto = texto_del_aviso(self._site, html)
             if not texto:
                 # Pagina sin titulo ni descripcion: anti-robots o el sitio
                 # cambio su HTML. No se marca como revisado: se reintenta.
@@ -81,9 +81,21 @@ class AptoCreditoPorDescripcionService:
             console.log(f'Resultado: {dict(resultados)}')
         return complete
 
-    def _save_for_sending(self, posting, html: str) -> None:
+    def _texto(self, posting) -> Tuple[Optional[str], Optional[str]]:
+        '''(texto del aviso, html de su pagina). Si el listado ya trae la
+        descripcion (Argenprop) no se visita el aviso: html es None. Texto
+        None = el sitio no respondio.'''
+        texto = self._scraper.listing_text(posting.sha)
+        if texto:
+            return texto, None
+        html = self._scraper.fetch_detail(posting.url)
+        if html is None:
+            return None, None
+        return texto_del_aviso(self._site, html), html
+
+    def _save_for_sending(self, posting, html: Optional[str]) -> None:
         posting.badge = BADGE
-        if self._scraper.publication_in_detail_page:
+        if html and self._scraper.publication_in_detail_page:
             posting.published = label_from_html(html)
         self._postings.create_posting(posting)
 

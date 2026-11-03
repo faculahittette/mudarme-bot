@@ -75,13 +75,15 @@ century21:
 # Llegan con la etiqueta "Apto credito segun la descripcion". BNA no hace
 # falta: todo lo de +Hogares es apto. Sitios soportados: zonaprop, argenprop,
 # mercadolibre (el texto se lee distinto en cada uno: scraper_app/apto_credito.py).
+# Argenprop trae la descripcion completa en el listado: se lee de ahi, sin
+# entrar a cada aviso (cada visita extra acerca su bloqueo anti-robots, 202).
 # Zonaprop y Argenprop van ordenadas por "mas nuevos" y se leen pocas paginas
 # (apto_credito_paginas): los avisos nuevos estan siempre arriba y asi no nos
 # bloquean. Mercado Libre no ordena por fecha: se leen todas sus paginas.
 # Por corrida se revisan hasta apto_credito_max_avisos avisos por busqueda.
 apto_credito_paginas:
   zonaprop: 3
-  argenprop: 2
+  argenprop: 1
 apto_credito_max_avisos: 40
 apto_credito_por_descripcion:
   zonaprop:

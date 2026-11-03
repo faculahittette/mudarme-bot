@@ -1,6 +1,6 @@
 from abc import ABC
 from hashlib import sha1
-from typing import Optional, Set
+from typing import Dict, Optional, Set
 
 from bs4 import BeautifulSoup
 
@@ -13,6 +13,10 @@ class BaseParser(ABC):
     #: paginacion cuando una pagina no trae nada nuevo. `None` = el parser no
     #: lo informa y se recorren siempre las `pages` configuradas.
     page_keys: Optional[Set[str]] = None
+    #: sha -> texto que escribio quien publica (titulo + descripcion), cuando
+    #: el listado ya lo trae completo. Asi "apto credito por descripcion" no
+    #: tiene que entrar a cada aviso. Vacio = hay que visitar el aviso.
+    listing_texts: Dict[str, str] = {}
 
     def get_soup_object(self, html: str):
         '''

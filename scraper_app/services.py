@@ -48,6 +48,8 @@ class ScraperService:
         #: False si el sitio dejo de responder a mitad de la busqueda: lo que
         #: se trajo sirve, pero puede faltar algo (ver main: reintento + alerta).
         self.complete = True
+        #: sha -> titulo + descripcion, cuando el listado la trae (Argenprop).
+        self._listing_texts: Dict[str, str] = {}
 
     def get_postings_from_scraper(self) -> Set[Posting]:
         postings = set()
@@ -76,6 +78,7 @@ class ScraperService:
             console.log(f'Got {len(new_postings)} postings')
 
             postings = postings.union(new_postings)
+            self._listing_texts.update(getattr(self._parser, 'listing_texts', {}))
 
             page_keys = getattr(self._parser, 'page_keys', None)
             if page_keys is not None:
@@ -110,6 +113,11 @@ class ScraperService:
     @property
     def publication_in_detail_page(self) -> bool:
         return getattr(self._gateway, 'publication_in_detail_page', False)
+
+    def listing_text(self, sha: str) -> Optional[str]:
+        '''Titulo + descripcion del aviso tal como vino en el listado, o None
+        si el sitio no la muestra ahi (hay que visitar el aviso).'''
+        return self._listing_texts.get(sha) or None
 
     def fetch_detail(self, url: str) -> Optional[str]:
         '''HTML de la pagina de un aviso, o None si el sitio no respondio.'''

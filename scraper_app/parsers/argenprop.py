@@ -22,6 +22,7 @@ class ArgenpropParser(BaseParser):
         """Extracting data and returning list of objects"""
         postings = set()
         self.page_keys = set()
+        self.listing_texts = {}
         base_info_soaps = self.soup.find_all(
             self.base_info_tag, class_=self.base_info_class)
 
@@ -54,6 +55,12 @@ class ArgenpropParser(BaseParser):
             else:
                 description = ''
             location = self.sanitize_text(location_container.get_text()) if location_container else ''
+            # La tarjeta del listado trae la descripcion entera: alcanza para
+            # saber si dice "apto credito" sin entrar al aviso (cada visita
+            # extra acerca el bloqueo anti-robots de Argenprop).
+            if description_container:
+                self.listing_texts[sha] = ' | '.join(
+                    (title, self.sanitize_text(description_container.get_text())))
 
             new_posting = Posting(
                 sha=sha,

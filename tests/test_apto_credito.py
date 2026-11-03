@@ -95,11 +95,15 @@ class _Scraper:
     complete = True
     publication_in_detail_page = True
 
-    def __init__(self, postings, pages):
+    def __init__(self, postings, pages, listing=None):
         self._postings, self._pages, self.visited = postings, pages, []
+        self._listing = listing or {}
 
     def get_postings_from_scraper(self):
         return set(self._postings)
+
+    def listing_text(self, sha):
+        return self._listing.get(sha)
 
     def fetch_detail(self, url):
         self.visited.append(url)
@@ -133,8 +137,8 @@ def _p(sha):
     return Posting(sha=sha, url=f'https://z/{sha}', title=sha)
 
 
-def _run(postings, pages, known=(), checked=(), max_avisos=40):
-    scraper, repo, checks = _Scraper(postings, pages), _Postings(known), _Checks(checked)
+def _run(postings, pages, known=(), checked=(), max_avisos=40, listing=None):
+    scraper, repo, checks = _Scraper(postings, pages, listing), _Postings(known), _Checks(checked)
     service = AptoCreditoPorDescripcionService('zonaprop', scraper, repo, checks, max_avisos=max_avisos)
     ok = service.scrap_and_create_postings()
     return ok, scraper, repo, checks
@@ -246,3 +250,43 @@ def test_el_mensaje_muestra_la_etiqueta_debajo_del_titulo():
     posting = Posting(sha='a', url='https://x', title='Depto', price='USD 1', location='L', badge=BADGE)
     lines = TelegramService('t', 'c').format_posting_to_message(posting).split('\n')
     assert lines[:2] == ['<b>Depto</b>', f'<b>{BADGE}</b>']
+
+
+def test_si_el_listado_trae_la_descripcion_no_visita_el_aviso():
+    # Argenprop: cada visita extra acerca el bloqueo anti-robots (202).
+    ok, scraper, repo, checks = _run(
+        [_p('si'), _p('no')], {},
+        listing={'si': 'Depto | Apto crédito.', 'no': 'Depto | No apto crédito'})
+    assert ok is True and scraper.visited == []
+    assert [p.sha for p in repo.created] == ['si']
+    assert repo.created[0].published is None  # sin pagina del aviso no hay fecha
+    assert checks.saved == {'si': 'si', 'no': 'no'}
+
+
+def test_sin_texto_en_el_listado_visita_el_aviso():
+    _, scraper, repo, _ = _run([_p('a'), _p('b')], {'https://z/b': _page('Apto crédito.')},
+                               listing={'a': 'Depto | Luminoso'})
+    assert scraper.visited == ['https://z/b'] and [p.sha for p in repo.created] == ['b']
+
+
+_ARGENPROP_LISTADO = """
+<div class="listing__item"><a class="card" href="/depto-en-venta--1">
+  <h2 class="card__title">Depto 3 amb Caballito</h2>
+  <p class="card__price">USD 200.000</p>
+  <p class="card__address">Acoyte 700</p>
+  <p class="card__info">Luminoso, al frente.
+     Apto   crédito.</p></a></div>
+<div class="listing__item"><a class="card" href="/depto-en-venta--2">
+  <h2 class="card__title">Depto sin descripcion</h2></a></div>
+"""
+
+
+def test_argenprop_guarda_el_texto_de_cada_tarjeta():
+    from scraper_app.parsers import ArgenpropParser
+    parser = ArgenpropParser()
+    parser.get_soup_object(_ARGENPROP_LISTADO)
+    postings = {p.url: p.sha for p in parser.extract_data()}
+    sha1, sha2 = postings['https://www.argenprop.com/depto-en-venta--1'], postings['https://www.argenprop.com/depto-en-venta--2']
+    assert parser.listing_texts == {sha1: 'Depto 3 amb Caballito | Luminoso, al frente. Apto crédito.'}
+    assert sha2 not in parser.listing_texts
+    assert clasificar(parser.listing_texts[sha1]) is Veredicto.SI

@@ -107,7 +107,8 @@ def main() -> None:
             search.site, scraper, postings, checks, max_avisos=config.apto_credito_max_avisos,
         ).scrap_and_create_postings()
         for posting in postings.would_send:
-            frase = _FRASE.search(texto_del_aviso(search.site, scraper.pages[posting.url]))
+            texto = scraper.listing_text(posting.sha) or texto_del_aviso(search.site, scraper.pages[posting.url])
+            frase = _FRASE.search(texto)
             line = f'MANDARIA | {posting.title[:70]} | {posting.price}\n    "{frase.group(0) if frase else ""}"\n    {posting.url}'
             print(line)
             total.append(line)

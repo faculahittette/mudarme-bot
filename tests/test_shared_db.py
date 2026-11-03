@@ -154,6 +154,9 @@ def test_apto_service_with_real_db_saves_and_remembers(repo):
         def get_postings_from_scraper(self):
             return {_posting('si1'), _posting('si2'), _posting('no')}
 
+        def listing_text(self, sha):
+            return None
+
         def fetch_detail(self, url):
             return pages[url]
 
